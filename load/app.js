@@ -344,6 +344,15 @@
           ['空気が運んだ総熱量', 'ac.energy', 'kWh', false, 2], ['空気が運んだ総水量（除湿量）', 'ac.water', 'L', false, 2]]),
         el('p', { class: 'hint', text: 'エアコンの顕熱比はおおむね 50～80% の間で動きます。夏はエアコンの顕熱比を建物の顕熱比に合わせるように風量・吹出し温度を調整します。冬は顕熱比は無視してかまいません。' })
       ], 'span2', 'ac3'));
+    var psySvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    psySvg.id = 'psy';
+    psySvg.setAttribute('role', 'img');
+    psySvg.setAttribute('aria-label', 'エアコンの空気の状態変化を示した空気線図');
+    g.appendChild(card('空気線図で見る空調の動き', null,
+      '横軸が乾球温度、縦軸が絶対湿度です。外気と室内空気が混ざって吸込み空気になり（点線）、エアコンで吹出し空気になり（矢印）、室内の負荷を受けて室内空気に戻ります。', [
+        el('div', { class: 'psy-wrap' }, [psySvg]),
+        el('p', { class: 'hint', id: 'psy-note' })
+      ], 'span2', 'psy'));
     root.appendChild(g);
   }
 
@@ -580,6 +589,50 @@
     document.getElementById('house').innerHTML = s;
   }
 
+  /* ---------------- 空気線図 ---------------- */
+  var psy = null;
+  function renderPsy(r) {
+    if (!psy) return;
+    var A = r.ac, L = r.load;
+    var note = document.getElementById('psy-note');
+    var pts = [], procs = [];
+    var ok = function (p) { return isFinite(p.t) && isFinite(p.x); };
+    var add = function (id, name, t, xg, color) {
+      var p = { id: id, name: name, t: t, x: xg / 1000, color: color };
+      if (ok(p)) pts.push(p);
+      return p;
+    };
+    var ra = add('ra', '室内空気 ' + fmt(state.tIn, 1) + '℃ ' + fmt(state.rhIn, 0) + '%', state.tIn, L.xIn, '#2a78d6');
+    var oa = add('oa', '外気 ' + fmt(state.tOut, 1) + '℃ ' + fmt(state.rhOut, 0) + '%', state.tOut, L.xOut, '#eb6834');
+    var hasVent = state.vent > 0;
+    var hx = hasVent && (state.effS > 0 || state.effL > 0);
+    var oa2 = hx ? add('oa2', '換気（熱交換後）', A.oa.t, A.oa.x, '#c98500') : oa;
+    var isMix = state.acSource !== 'room' && hasVent && A.room.q > 0;
+    var ma = isMix ? add('ma', '混合気＝吸込み', A.mix.t, A.mix.x, '#1baf7a') : ra;
+    var sa = add('sa', '吹出し ' + fmt(A.supply.t, 1) + '℃ ' + fmt(A.supply.rh * 100, 0) + '%', A.supply.t, A.supply.x, '#e34948');
+    if (hx && ok(oa) && ok(oa2)) procs.push({ from: 'oa', to: 'oa2', kind: 'process' });
+    if (isMix && ok(oa2) && ok(ra)) procs.push({ from: oa2.id, to: 'ra', kind: 'mix' });
+    if (ok(ma) && ok(sa)) procs.push({ from: ma.id, to: 'sa', kind: 'process' });
+    if (ok(sa) && ok(ra)) procs.push({ from: 'sa', to: 'ra', kind: 'process' });
+    if (!ok(ra) || !ok(sa)) {
+      psy.setData({ points: [], processes: [], shf: [] }); psy.render();
+      note.textContent = '室内・外気の条件と風量を入力すると、状態点が表示されます。';
+      return;
+    }
+    var ts = pts.map(function (p) { return p.t; }), xs = pts.map(function (p) { return p.x; });
+    var tMin = Math.floor((Math.min.apply(null, ts) - 5) / 5) * 5, tMax = Math.ceil((Math.max.apply(null, ts) + 7) / 5) * 5;
+    if (tMax - tMin < 25) { tMax = tMin + 25; }
+    var xMax = Math.max(0.012, Math.ceil(Math.max.apply(null, xs) * 1.3 * 1000 / 4) * 4 / 1000);
+    psy.setRange({ tMin: tMin, tMax: tMax, xMax: xMax });
+    psy.setData({ points: pts, processes: procs, shf: [] });
+    psy.render();
+    var mode = A.heating ? '暖房' : '冷房';
+    note.textContent = mode + '運転：吸込み ' + fmt(ma.t, 1) + '℃・' + fmt(ma.x * 1000, 2) + ' g/kg → 吹出し ' + fmt(sa.t, 1) + '℃・' + fmt(sa.x * 1000, 2) + ' g/kg。' +
+      (A.heating ? '暖房では絶対湿度が変わらないため、横に動くだけです（相対湿度は下がります）。' :
+        '冷房では吹出し空気が飽和線（相対湿度 100%）まで冷やされ、絶対湿度の差の分が除湿量になります。') +
+      ' 吹出し→室内空気の矢印が、室内の負荷（顕熱比 ' + fmt(L.shf * 100, 0) + '%）で空気が戻る変化です。';
+  }
+
   var VIEW_KEY = 'airconditioning-view';
   var view = (function () { try { return localStorage.getItem(VIEW_KEY) || 'house'; } catch (e) { return 'house'; } })();
   function applyView() {
@@ -666,6 +719,7 @@
     document.getElementById('sum-shf').textContent = fmt(r.load.shf * 100, 1);
     document.getElementById('sum-humid').textContent = fmt(r.load.humid, 2);
     renderSummary(r);
+    renderPsy(r);
     // 浴室の自動計算行の表示切替
     var bathW = document.getElementById('in-bathLW');
     if (bathW) {
@@ -780,6 +834,10 @@
     buildLoadPanel(document.getElementById('load-cards'));
     buildAcPanel(document.getElementById('aircon-cards'));
     buildRadiantPanel(document.getElementById('radiant-cards'));
+    if (window.PsyChart && window.Psy) {
+      psy = new PsyChart(document.getElementById('psy'));
+      psy.setLayers({ db: true, x: true, rh: true, wb: false, h: true, v: false });
+    }
     syncInputs();
     document.addEventListener('input', onInput);
     document.addEventListener('change', onInput);
