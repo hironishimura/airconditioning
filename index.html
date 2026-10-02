@@ -90,9 +90,19 @@
       </dl>
     </div>
     <div class="chart-block">
-      <h2>熱負荷の内訳</h2>
-      <p class="chart-legend"><span class="lh">プラス＝室内が暑くなる（冷房負荷）</span><span class="lc">マイナス＝室内が寒くなる（暖房負荷）</span></p>
-      <div class="chart" id="chart"></div>
+      <div class="chart-head">
+        <h2>熱負荷の内訳</h2>
+        <div class="seg" role="group" aria-label="内訳の表示方法">
+          <button type="button" id="view-house" aria-pressed="true">イラスト</button>
+          <button type="button" id="view-bars" aria-pressed="false">グラフ</button>
+        </div>
+      </div>
+      <p class="chart-legend"><span class="lh">朱＝室内が暑くなる熱（冷房負荷）</span><span class="lc">藍＝室内が寒くなる熱（暖房負荷）</span></p>
+      <figure class="house" id="house-fig">
+        <div id="house"></div>
+        <figcaption>矢印が家に<b>入る向き</b>なら熱が入って暑くなり、<b>出る向き</b>なら熱が逃げて寒くなります。矢印が太いほど影響が大きい項目です。</figcaption>
+      </figure>
+      <div class="chart" id="chart" hidden></div>
     </div>
   </section>
 
@@ -121,7 +131,7 @@
       <li><b>換気を入れる。</b>換気量（㎥/h）と、熱交換換気の場合は顕熱・潜熱の交換効率（%）を入れます。熱交換なしなら 0 です。</li>
       <li><b>人と家電を入れる。</b>在室人数と、使っている家電の台数を入れます。各項目の括弧内に目安のワット数が書いてあります。使わない機器は数量を 0 にします。</li>
       <li><b>日射と外皮を入れる。</b>南面・東西面の窓面積と 1㎡ あたりの日射熱、外皮面積と UA値を入れます。UA値は省エネ計算書の値をそのまま使えます。</li>
-      <li><b>結果を見る。</b>上部の「合計負荷」がプラスなら冷房、マイナスなら暖房が必要です。数値の絶対値 ÷ 1000 が必要な能力（kW）の目安です。グラフで、何が負荷の原因になっているかがわかります。</li>
+      <li><b>結果を見る。</b>上部の「合計負荷」がプラスなら冷房、マイナスなら暖房が必要です。数値の絶対値 ÷ 1000 が必要な能力（kW）の目安です。「熱負荷の内訳」の家のイラストでは、熱が入ってくる所（朱の矢印）と逃げていく所（藍の矢印）が、矢印の太さで大きさとともにわかります。「グラフ」に切り替えると原表と同じ棒グラフで見られます。</li>
       <li><b>エアコンを確かめる（任意）。</b>「エアコン吹出し」タブで吹出口の大きさと風速・吹出し温度を入れると、エアコンが出せる能力と顕熱比がわかります。夏はエアコンの顕熱比を建物の顕熱比に近づけるのが目安です。</li>
       <li><b>床下暖房を確かめる（任意）。</b>「輻射暖房・床下」タブで、温水パイプの放熱量や床ガラリから出る空気の熱量を確かめられます。</li>
     </ol>

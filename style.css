@@ -119,6 +119,38 @@ select:focus-visible, input:focus-visible, textarea:focus-visible, button:focus-
 .chart-legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
 .chart-legend .lh::before { background: var(--hot); }
 .chart-legend .lc::before { background: var(--cold); }
+.chart-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 2px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.seg button { appearance: none; border: 0; background: var(--surface); color: var(--muted); font: inherit; font-size: .8rem; font-weight: 600; padding: 4px 12px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+
+/* 家のイラスト */
+.house { margin: 0; }
+.house svg { width: 100%; max-width: 560px; height: auto; display: block; margin-inline: auto; }
+.house figcaption { font-size: .78rem; color: var(--muted); margin-top: 4px; }
+.house text { font-family: var(--font-body); font-size: 14px; fill: var(--ink); }
+.house .lbl-s { font-size: 12px; fill: var(--muted); }
+.house .num { font-family: var(--font-num); font-size: 15px; font-weight: 600; }
+.house .num.hot, .house .t-hot { fill: var(--hot); }
+.house .num.cold, .house .t-cold { fill: var(--cold); }
+.house .num.zero { fill: var(--muted); font-weight: 400; }
+.house .total { font-family: var(--font-num); font-size: 26px; font-weight: 700; }
+.house .bldg { fill: var(--surface-2); stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; }
+.house .roof { fill: var(--surface); stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; }
+.house .ground { stroke: var(--muted); stroke-width: 2; }
+.house .glass { fill: var(--cold-bg); stroke: var(--ink); stroke-width: 1.5; }
+.house .sun { fill: #f2b233; stroke: #d48b0b; stroke-width: 1.5; }
+.house .ray { stroke: #e09a12; stroke-width: 2; stroke-linecap: round; }
+.house .icon { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.house .icon-fill { fill: var(--ink); }
+.house .drop { fill: var(--cold); opacity: .75; }
+.house .duct { fill: var(--surface); stroke: var(--ink); stroke-width: 1.5; }
+.house .a-hot { stroke: var(--hot); fill: none; stroke-linecap: round; }
+.house .a-cold { stroke: var(--cold); fill: none; stroke-linecap: round; }
+.house .a-zero { stroke: var(--muted); fill: none; stroke-dasharray: 4 4; }
+.house .h-hot { fill: var(--hot); }
+.house .h-cold { fill: var(--cold); }
 .chart svg { width: 100%; height: auto; display: block; }
 .chart text { font-family: var(--font-body); font-size: 12px; fill: var(--ink); }
 .chart .val { font-family: var(--font-num); font-size: 11.5px; }

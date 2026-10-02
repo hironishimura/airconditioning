@@ -361,8 +361,131 @@
     host.innerHTML = s;
   }
 
+  /* ---------------- 家のイラスト ---------------- */
+  function signed(v) {
+    if (!isFinite(v)) return '—';
+    var s = fmt(v, 0);
+    return (v >= 0.5 ? '+' : '') + s + ' W';
+  }
+  // 矢印（線＋三角）。太さは値の大きさ、色は符号
+  function arrow(x1, y1, x2, y2, v, max) {
+    var c = signClass(v);
+    if (c === 'zero') {
+      return '<line class="a-zero" x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" stroke-width="1.5"/>';
+    }
+    var sw = 3 + 9 * Math.min(1, Math.abs(v) / max);
+    var head = Math.max(11, sw * 2.1);
+    var dx = x2 - x1, dy = y2 - y1, len = Math.sqrt(dx * dx + dy * dy);
+    var ux = dx / len, uy = dy / len;
+    var bx = x2 - ux * head, by = y2 - uy * head; // 三角の底辺の中心
+    var hw = head * 0.6;
+    var pts = [x2 + ',' + y2, (bx - uy * hw) + ',' + (by + ux * hw), (bx + uy * hw) + ',' + (by - ux * hw)].join(' ');
+    var ex = x2 - ux * head * 0.8, ey = y2 - uy * head * 0.8;
+    return '<line class="a-' + c + '" x1="' + x1 + '" y1="' + y1 + '" x2="' + ex + '" y2="' + ey + '" stroke-width="' + sw.toFixed(1) + '"/>' +
+      '<polygon class="h-' + c + '" points="' + pts + '"/>';
+  }
+  // 家の外 (ox,oy) と内 (ix,iy) を結ぶ流れ。プラスは外→内、マイナスは内→外
+  function flow(ox, oy, ix, iy, v, max) {
+    return v >= 0 ? arrow(ox, oy, ix, iy, v, max) : arrow(ix, iy, ox, oy, v, max);
+  }
+  function num(x, y, v, anchor) {
+    return '<text class="num ' + signClass(v) + '" x="' + x + '" y="' + y + '"' + (anchor ? ' text-anchor="' + anchor + '"' : '') + '>' + signed(v) + '</text>';
+  }
+  function txt(x, y, s, cls, anchor) {
+    return '<text' + (cls ? ' class="' + cls + '"' : '') + ' x="' + x + '" y="' + y + '"' + (anchor ? ' text-anchor="' + anchor + '"' : '') + '>' + s + '</text>';
+  }
+
+  function renderHouse(L) {
+    var b = {};
+    L.breakdown.forEach(function (it) { b[it.key] = it.value; });
+    var max = Math.max.apply(null, L.breakdown.map(function (i) { return Math.abs(i.value); }).concat([1]));
+    var extras = L.breakdown.filter(function (it) { return it.extra && Math.abs(it.value) >= 0.5; });
+    var W = 480, H = 372 + extras.length * 22;
+    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="家の断面図で熱の出入りを示した熱負荷の内訳。合計 ' + signed(L.total) + '">';
+
+    // 地面・建物
+    s += '<line class="ground" x1="0" y1="360" x2="' + W + '" y2="360"/>';
+    s += '<rect class="bldg" x="110" y="165" width="260" height="195"/>';
+    s += '<polygon class="roof" points="90,170 240,72 390,170"/>';
+    s += '<rect class="glass" x="104" y="200" width="12" height="62"/>'; // 南の窓
+
+    // 太陽と日射取得
+    s += '<circle class="sun" cx="40" cy="46" r="15"/>';
+    for (var i = 0; i < 8; i++) {
+      var a = i * Math.PI / 4, c1 = Math.cos(a), s1 = Math.sin(a);
+      s += '<line class="ray" x1="' + (40 + c1 * 20) + '" y1="' + (46 + s1 * 20) + '" x2="' + (40 + c1 * 27) + '" y2="' + (46 + s1 * 27) + '"/>';
+    }
+    s += txt(72, 38, '日射取得') + num(72, 58, b.solar);
+    s += b.solar >= 0.5 ? arrow(58, 66, 122, 214, b.solar, max) : arrow(58, 66, 122, 214, 0, max);
+
+    // 外皮（屋根と壁を貫く矢印）
+    s += flow(352, 96, 352, 196, b.env, max);
+    s += flow(26, 290, 128, 290, b.env, max);
+    s += txt(372, 30, '外皮') + txt(372, 47, '壁・屋根・窓', 'lbl-s') + num(372, 68, b.env);
+    s += txt(8, 272, '外皮', 'lbl-s');
+
+    // 換気（右の壁のダクト）
+    s += '<rect class="duct" x="362" y="226" width="30" height="12" rx="2"/>';
+    s += '<rect class="duct" x="362" y="296" width="30" height="12" rx="2"/>';
+    s += flow(472, 232, 352, 232, b.ventS, max);
+    s += flow(472, 302, 352, 302, b.ventL, max);
+    s += txt(398, 188, '換気・顕熱', 'lbl-s') + num(398, 208, b.ventS);
+    s += txt(398, 258, '換気・潜熱', 'lbl-s') + num(398, 278, b.ventL);
+
+    // 合計（屋根裏）
+    var tc = signClass(L.total);
+    s += txt(240, 112, '合計', 'lbl-s', 'middle');
+    s += '<text class="total t-' + tc + '" x="240" y="140" text-anchor="middle">' + signed(L.total) + '</text>';
+    s += txt(240, 159, tc === 'hot' ? '冷房が必要' : tc === 'cold' ? '暖房が必要' : '負荷ほぼゼロ', 'lbl-s', 'middle');
+
+    // 内部発熱（顕熱）：人・テレビ
+    s += txt(180, 192, '内部発熱・顕熱', 'lbl-s', 'middle') + num(180, 212, b.intS, 'middle');
+    s += b.intS >= 0 ? arrow(180, 290, 180, 226, b.intS, max) : arrow(180, 226, 180, 290, b.intS, max);
+    s += '<circle class="icon" cx="148" cy="300" r="7"/>';
+    s += '<path class="icon" d="M148 308 V334 M136 318 H160 M148 334 L139 352 M148 334 L157 352"/>';
+    s += '<rect class="icon" x="194" y="306" width="34" height="23" rx="2"/><path class="icon" d="M211 329 V340 M201 342 H221"/>';
+
+    // 内部発熱（潜熱）：洗濯物・浴槽・湯気
+    s += txt(296, 192, '内部発熱・潜熱', 'lbl-s', 'middle') + num(296, 212, b.intL, 'middle');
+    s += b.intL >= 0 ? arrow(296, 290, 296, 226, b.intL, max) : arrow(296, 226, 296, 290, b.intL, max);
+    s += '<path class="icon" d="M258 300 H334"/>';
+    [266, 290, 314].forEach(function (x) {
+      s += '<path class="icon" d="M' + (x - 6) + ' 300 v14 h14 v-14"/>';
+      s += '<path class="drop" d="M' + (x + 1) + ' 318 q-4 6 0 8 q4 -2 0 -8z"/>';
+    });
+    s += '<path class="icon" d="M262 334 H332 V342 Q332 352 322 352 H272 Q262 352 262 342 Z"/>';
+
+    // 原表のグラフにない項目（0 でないときだけ）
+    extras.forEach(function (it, k) {
+      var y = 384 + k * 22;
+      s += txt(8, y, it.label) + num(150, y, it.value);
+    });
+    s += '</svg>';
+    document.getElementById('house').innerHTML = s;
+  }
+
+  var VIEW_KEY = 'airconditioning-view';
+  var view = (function () { try { return localStorage.getItem(VIEW_KEY) || 'house'; } catch (e) { return 'house'; } })();
+  function applyView() {
+    document.getElementById('house-fig').hidden = view !== 'house';
+    document.getElementById('chart').hidden = view !== 'bars';
+    document.getElementById('view-house').setAttribute('aria-pressed', view === 'house' ? 'true' : 'false');
+    document.getElementById('view-bars').setAttribute('aria-pressed', view === 'bars' ? 'true' : 'false');
+    if (lastBreakdown && view === 'bars') renderChart(lastBreakdown);
+  }
+  function setupView() {
+    ['house', 'bars'].forEach(function (v) {
+      document.getElementById('view-' + v).addEventListener('click', function () {
+        view = v;
+        try { localStorage.setItem(VIEW_KEY, v); } catch (e) { /* 保存できなくても表示は切り替える */ }
+        applyView();
+      });
+    });
+    applyView();
+  }
+
   var lastBreakdown = null;
-  window.addEventListener('resize', function () { if (lastBreakdown) renderChart(lastBreakdown); });
+  window.addEventListener('resize', function () { if (lastBreakdown && view === 'bars') renderChart(lastBreakdown); });
 
   function renderSummary(r) {
     var L = r.load;
@@ -381,7 +504,8 @@
     var meta = [state.season, state.place, state.time].filter(Boolean).join('・');
     document.getElementById('sum-meta').textContent = meta ? '条件：' + meta : '条件：未設定';
     lastBreakdown = L.breakdown;
-    renderChart(L.breakdown);
+    renderHouse(L);
+    if (view === 'bars') renderChart(L.breakdown);
   }
 
   /* ---------------- 値の反映 ---------------- */
@@ -546,6 +670,7 @@
     setupPresets();
     setupIO();
     setupTabs();
+    setupView();
     render();
   }
 
