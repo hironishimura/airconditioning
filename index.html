@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>空気線図</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="app-header">
+    <h1>空気線図 <span>Psychrometric Chart</span></h1>
+    <div class="toolbar">
+      <button type="button" id="btn-sample">サンプル（夏期冷房）</button>
+      <button type="button" id="btn-svg">SVG 保存</button>
+      <button type="button" id="btn-png">PNG 保存</button>
+      <button type="button" id="btn-csv">CSV 保存</button>
+      <button type="button" id="btn-print">印刷</button>
+      <button type="button" id="btn-clear" class="danger">全消去</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <details open>
+        <summary>状態点の追加</summary>
+        <form id="form-point" class="form">
+          <label>名称 <input id="pt-name" type="text" maxlength="12" placeholder="自動"></label>
+          <label>入力する 2 値
+            <select id="pt-mode">
+              <option value="db-rh">乾球温度 + 相対湿度</option>
+              <option value="db-wb">乾球温度 + 湿球温度</option>
+              <option value="db-x">乾球温度 + 絶対湿度</option>
+              <option value="db-dp">乾球温度 + 露点温度</option>
+              <option value="db-h">乾球温度 + 比エンタルピー</option>
+              <option value="wb-rh">湿球温度 + 相対湿度</option>
+              <option value="h-rh">比エンタルピー + 相対湿度</option>
+              <option value="h-x">比エンタルピー + 絶対湿度</option>
+            </select>
+          </label>
+          <div class="row2">
+            <label><span id="pt-a-label">乾球温度 [°C]</span> <input id="pt-a" type="number" step="any" value="26" required></label>
+            <label><span id="pt-b-label">相対湿度 [%]</span> <input id="pt-b" type="number" step="any" value="50" required></label>
+          </div>
+          <div class="btns">
+            <button type="submit" class="primary">追加</button>
+            <button type="button" id="pt-update" disabled>選択中の点を更新</button>
+          </div>
+          <label class="check"><input type="checkbox" id="click-add"> 線図クリックで点を追加</label>
+          <p class="hint">点はドラッグで移動できます。一覧の行をクリックすると選択します。</p>
+          <p id="pt-error" class="error" role="alert"></p>
+        </form>
+      </details>
+
+      <details open>
+        <summary>状態変化（熱量計算）</summary>
+        <form id="form-proc" class="form">
+          <div class="row2">
+            <label>始点 <select id="pr-from"></select></label>
+            <label>終点 <select id="pr-to"></select></label>
+          </div>
+          <label>風量 [m³/h]（入口状態基準） <input id="pr-flow" type="number" min="0" step="any" value="10000"></label>
+          <div class="btns"><button type="submit" class="primary">変化線を追加</button></div>
+        </form>
+      </details>
+
+      <details>
+        <summary>混合</summary>
+        <form id="form-mix" class="form">
+          <div class="row2">
+            <label>空気 1 <select id="mx-a"></select></label>
+            <label>風量 [m³/h] <input id="mx-qa" type="number" min="0" step="any" value="3000"></label>
+          </div>
+          <div class="row2">
+            <label>空気 2 <select id="mx-b"></select></label>
+            <label>風量 [m³/h] <input id="mx-qb" type="number" min="0" step="any" value="7000"></label>
+          </div>
+          <label>混合点の名称 <input id="mx-name" type="text" maxlength="12" placeholder="MA"></label>
+          <div class="btns"><button type="submit" class="primary">混合点を追加</button></div>
+        </form>
+      </details>
+
+      <details>
+        <summary>SHF 線・装置露点</summary>
+        <form id="form-shf" class="form">
+          <div class="row2">
+            <label>基準点 <select id="shf-pt"></select></label>
+            <label>SHF <input id="shf-val" type="number" min="0.3" max="1" step="0.01" value="0.80"></label>
+          </div>
+          <div class="btns"><button type="submit" class="primary">SHF 線を追加</button></div>
+          <ul id="shf-list" class="chips"></ul>
+        </form>
+      </details>
+
+      <details>
+        <summary>線図の設定</summary>
+        <form id="form-settings" class="form" onsubmit="return false">
+          <div class="row2">
+            <label>標高 [m] <input id="set-alt" type="number" step="any" value="0"></label>
+            <label>大気圧 [kPa] <input id="set-p" type="number" step="any" value="101.325"></label>
+          </div>
+          <div class="row3">
+            <label>温度 下限 <input id="set-tmin" type="number" step="1" value="-10"></label>
+            <label>温度 上限 <input id="set-tmax" type="number" step="1" value="50"></label>
+            <label>x 上限 [g/kg] <input id="set-xmax" type="number" step="1" value="30"></label>
+          </div>
+          <fieldset class="layers">
+            <legend>表示する線</legend>
+            <label class="check"><input type="checkbox" data-layer="db" checked> <i class="sw" style="--c:#97a3b1"></i>乾球温度</label>
+            <label class="check"><input type="checkbox" data-layer="x" checked> <i class="sw" style="--c:#97a3b1"></i>絶対湿度</label>
+            <label class="check"><input type="checkbox" data-layer="rh" checked> <i class="sw" style="--c:#2b74b8"></i>相対湿度</label>
+            <label class="check"><input type="checkbox" data-layer="wb" checked> <i class="sw" style="--c:#2e9e5b"></i>湿球温度</label>
+            <label class="check"><input type="checkbox" data-layer="h" checked> <i class="sw" style="--c:#c2412d"></i>比エンタルピー</label>
+            <label class="check"><input type="checkbox" data-layer="v" checked> <i class="sw" style="--c:#8a4fb0"></i>比容積</label>
+          </fieldset>
+          <div class="btns"><button type="button" id="set-reset">既定値に戻す</button></div>
+        </form>
+      </details>
+    </aside>
+
+    <main class="main">
+      <div class="chart-wrap">
+        <svg id="chart" role="img" aria-label="空気線図"></svg>
+        <div id="readout" class="readout" hidden></div>
+      </div>
+
+      <section class="panel">
+        <h2>状態点</h2>
+        <div class="table-wrap">
+          <table id="tbl-points">
+            <thead>
+              <tr>
+                <th>名称</th><th>乾球<br>[°C]</th><th>湿球<br>[°C]</th><th>相対湿度<br>[%]</th>
+                <th>絶対湿度<br>[g/kg(DA)]</th><th>露点<br>[°C]</th><th>比エンタルピー<br>[kJ/kg(DA)]</th>
+                <th>比容積<br>[m³/kg(DA)]</th><th>水蒸気分圧<br>[kPa]</th><th></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>状態変化</h2>
+        <div class="table-wrap">
+          <table id="tbl-procs">
+            <thead>
+              <tr>
+                <th>変化</th><th>Δt<br>[K]</th><th>Δx<br>[g/kg(DA)]</th><th>Δh<br>[kJ/kg(DA)]</th><th>SHF</th>
+                <th>風量<br>[m³/h]</th><th>全熱<br>[kW]</th><th>顕熱<br>[kW]</th><th>潜熱<br>[kW]</th><th>水分量<br>[kg/h]</th><th></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <p class="note">熱量は負が冷却・除湿、正が加熱・加湿。顕熱は絶対湿度を入口値に固定した温度変化分、潜熱は残りの分です。
+          計算式は ASHRAE Handbook Fundamentals（理想気体近似）に基づきます。</p>
+      </section>
+    </main>
+  </div>
+
+  <script src="js/psychro.js"></script>
+  <script src="js/chart.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
