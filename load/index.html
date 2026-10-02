@@ -77,7 +77,7 @@
     <div class="total-block">
       <p class="eyebrow" id="sum-meta">条件：</p>
       <div>
-        <p class="eyebrow">合計負荷（顕熱＋潜熱）</p>
+        <p class="eyebrow" id="sum-help">合計負荷（顕熱＋潜熱）</p>
         <div class="total-num" id="sum-total">—</div>
       </div>
       <div><span class="pill neutral" id="sum-pill">—</span></div>
@@ -144,6 +144,7 @@
 
     <h2>入力のコツ</h2>
     <ul>
+      <li>各枠の右上の <b>？</b> ボタンを押すと、その枠で何を入力し、どう計算するかの説明が表示されます。</li>
       <li>各入力欄の下の小さな文字に、目安の数値や注意点を書いています（原表のセルコメントの内容です）。</li>
       <li>夏の負荷は「昼」、冬の負荷は「明け方」で計算すると最大値（機器選定用）、「季節平均」で計算すると平均的な運転状態を確認できます。</li>
       <li>部屋ごとに計算する場合は「隣室温度」と「隣室からの空気流入量」「間仕切りの面積」を入れます。家全体なら隣室温度を室温と同じにすれば影響はゼロになります。</li>
@@ -420,6 +421,7 @@ Ar       = 9.8 ÷ 300 × (室温 − 吹出し温度) × 短辺 ÷ 吹出し風�
   <p>冷暖房負荷計算シート Web 版。原表：冷暖房負荷計算シート（基本／輻射暖房／負荷手計算）。計算結果は設計の目安です。</p>
 </footer>
 
+<script src="help.js"></script>
 <script src="presets.js"></script>
 <script src="calc.js"></script>
 <script src="app.js"></script>

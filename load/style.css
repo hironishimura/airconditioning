@@ -16,6 +16,10 @@
   --warn-bg: #fff3d6;
   --input-bg: #fffdf5;
   --focus: #0a6873;
+  --sky-a: #cfe6fa; --sky-b: #f3f9ff; --grd-a: #bfdcb2; --grd-b: #9cc38c; --grd-line: #7fa871; --cloud: #ffffff;
+  --trunk: #8a6a4a; --leaf: #6fae62; --found: #9aa4ab; --wall: #d9c6a3; --room: #fffdf7; --roof: #8a6450; --roof-under: #5c4133; --attic: #f4ead9;
+  --frame: #7a6a55; --glass-a: #bfe0ff; --glass-b: #eaf5ff; --water-a: #9ad3f0; --water-b: #5fb3dd; --unit: #eef2f4;
+  --furn: #4e5d68; --furn-fill: #e9eef1; --lamp: #ffe9a8; --sofa: #a9c4d6; --sofa-dark: #8aa9bd; --skin: #f6d2b0; --shirt: #e39a6b; --shirt2: #cfe3f3; --tub: #f2f4f5; --steam: #9fb4c2;
   --c1: #2a78d6; --c2: #eb6834; --c3: #1baf7a; --c4: #eda100; --c5: #e87ba4; --c6: #008300; --c7: #4a3aa7; --c8: #e34948;
   --font-display: "Zen Kaku Gothic New", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
   --font-body: "IBM Plex Sans JP", "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
@@ -28,6 +32,10 @@
     --line: #2b3a42; --accent: #4cb5bf; --accent-ink: #062125; --hot: #f08a62; --hot-bg: #3a2119;
     --cold: #7aa5f2; --cold-bg: #18273f; --warn: #f2c165; --warn-bg: #3a2f14; --input-bg: #1f2a30;
     --focus: #6fd0d9; color-scheme: dark;
+    --sky-a: #0d1b2e; --sky-b: #16283c; --grd-a: #1e3a2b; --grd-b: #14291e; --grd-line: #2f5a40; --cloud: #2b3d52;
+    --trunk: #6a4e35; --leaf: #3e7a4a; --found: #3b464e; --wall: #6b5a42; --room: #1d2b35; --roof: #4b3628; --roof-under: #2d1f16; --attic: #2a2622;
+    --frame: #b8a68c; --glass-a: #2a4a68; --glass-b: #1c3349; --water-a: #3e7ea3; --water-b: #2a5f80; --unit: #26343d;
+    --furn: #b9c8d2; --furn-fill: #2a3b47; --lamp: #c9a94a; --sofa: #3f5b6e; --sofa-dark: #2f4858; --skin: #d9b08c; --shirt: #b86f45; --shirt2: #4c6b80; --tub: #34434d; --steam: #7f98a8;
     --c1: #3987e5; --c2: #d95926; --c3: #199e70; --c4: #c98500; --c5: #d55181; --c6: #008300; --c7: #9085e9; --c8: #e66767;
   }
 }
@@ -36,6 +44,10 @@
   --line: #2b3a42; --accent: #4cb5bf; --accent-ink: #062125; --hot: #f08a62; --hot-bg: #3a2119;
   --cold: #7aa5f2; --cold-bg: #18273f; --warn: #f2c165; --warn-bg: #3a2f14; --input-bg: #1f2a30;
   --focus: #6fd0d9; color-scheme: dark;
+  --sky-a: #0d1b2e; --sky-b: #16283c; --grd-a: #1e3a2b; --grd-b: #14291e; --grd-line: #2f5a40; --cloud: #2b3d52;
+  --trunk: #6a4e35; --leaf: #3e7a4a; --found: #3b464e; --wall: #6b5a42; --room: #1d2b35; --roof: #4b3628; --roof-under: #2d1f16; --attic: #2a2622;
+  --frame: #b8a68c; --glass-a: #2a4a68; --glass-b: #1c3349; --water-a: #3e7ea3; --water-b: #2a5f80; --unit: #26343d;
+  --furn: #b9c8d2; --furn-fill: #2a3b47; --lamp: #c9a94a; --sofa: #3f5b6e; --sofa-dark: #2f4858; --skin: #d9b08c; --shirt: #b86f45; --shirt2: #4c6b80; --tub: #34434d; --steam: #7f98a8;
   --c1: #3987e5; --c2: #d95926; --c3: #199e70; --c4: #c98500; --c5: #d55181; --c6: #008300; --c7: #9085e9; --c8: #e66767;
 }
 
@@ -97,6 +109,7 @@ select:focus-visible, input:focus-visible, textarea:focus-visible, button:focus-
 
 /* ---------- summary ---------- */
 .summary {
+  position: relative;
   display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 16px;
   background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; margin-bottom: 20px;
 }
@@ -129,32 +142,63 @@ select:focus-visible, input:focus-visible, textarea:focus-visible, button:focus-
 .seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
 
 /* 家のイラスト */
-.house { margin: 0; }
-.house svg { width: 100%; max-width: 560px; height: auto; display: block; margin-inline: auto; }
-.house figcaption { font-size: .78rem; color: var(--muted); margin-top: 4px; }
-.house text { font-family: var(--font-body); font-size: 14px; fill: var(--ink); }
-.house .lbl-s { font-size: 12px; fill: var(--muted); }
-.house .num { font-family: var(--font-num); font-size: 15px; font-weight: 600; }
+.house { margin: 0; overflow-x: auto; }
+.house svg { width: 100%; max-width: 640px; height: auto; display: block; margin-inline: auto; border-radius: 10px; }
+.house figcaption { font-size: .78rem; color: var(--muted); margin-top: 6px; }
+.house text { font-family: var(--font-body); font-size: 13px; fill: var(--ink); }
+.house .lbl, .house .lbl-s { font-size: 12px; fill: var(--muted); }
+.house .num { font-family: var(--font-num); font-size: 14px; font-weight: 600; }
+.house .cond { font-family: var(--font-num); font-size: 13.5px; font-weight: 600; }
 .house .num.hot, .house .t-hot { fill: var(--hot); }
 .house .num.cold, .house .t-cold { fill: var(--cold); }
 .house .num.zero { fill: var(--muted); font-weight: 400; }
 .house .total { font-family: var(--font-num); font-size: 26px; font-weight: 700; }
-.house .bldg { fill: var(--surface-2); stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; }
-.house .roof { fill: var(--surface); stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; }
-.house .ground { stroke: var(--muted); stroke-width: 2; }
-.house .glass { fill: var(--cold-bg); stroke: var(--ink); stroke-width: 1.5; }
-.house .sun { fill: #f2b233; stroke: #d48b0b; stroke-width: 1.5; }
-.house .ray { stroke: #e09a12; stroke-width: 2; stroke-linecap: round; }
-.house .icon { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.house .icon-fill { fill: var(--ink); }
-.house .drop { fill: var(--cold); opacity: .75; }
-.house .duct { fill: var(--surface); stroke: var(--ink); stroke-width: 1.5; }
-.house .a-hot { stroke: var(--hot); fill: none; stroke-linecap: round; }
-.house .a-cold { stroke: var(--cold); fill: none; stroke-linecap: round; }
-.house .a-zero { stroke: var(--muted); fill: none; stroke-dasharray: 4 4; }
-.house .h-hot { fill: var(--hot); }
-.house .h-cold { fill: var(--cold); }
-.chart svg { width: 100%; height: auto; display: block; }
+.house .pill rect { fill: var(--surface); fill-opacity: .92; stroke: var(--line); stroke-width: 1; filter: url(#f-soft); }
+.house .cond-pill rect { stroke: var(--accent); }
+.house .sky-a { stop-color: var(--sky-a); } .house .sky-b { stop-color: var(--sky-b); }
+.house .grd-a { stop-color: var(--grd-a); } .house .grd-b { stop-color: var(--grd-b); }
+.house .gl-a { stop-color: var(--glass-a); } .house .gl-b { stop-color: var(--glass-b); }
+.house .wt-a { stop-color: var(--water-a); } .house .wt-b { stop-color: var(--water-b); }
+.house .sun-a { stop-color: #ffd54a; } .house .sun-b { stop-color: #f29a1a; }
+.house .glow-a { stop-color: #ffcf4d; stop-opacity: .55; } .house .glow-b { stop-color: #ffcf4d; stop-opacity: 0; }
+.house .ray { stroke: #f2a21b; stroke-width: 2.5; stroke-linecap: round; }
+.house .ground { stroke: var(--grd-line); stroke-width: 2; }
+.house .cloud ellipse { fill: var(--cloud); }
+.house .tree rect { fill: var(--trunk); } .house .tree circle { fill: var(--leaf); }
+.house .found { fill: var(--found); }
+.house .wall { fill: var(--wall); }
+.house .room { fill: var(--room); }
+.house .slab { fill: var(--wall); }
+.house .roof { fill: var(--roof); }
+.house .roof-under { fill: var(--roof-under); }
+.house .attic { fill: var(--attic); }
+.house .chimney { fill: var(--roof-under); }
+.house .frame { fill: var(--frame); }
+.house .unit { fill: var(--unit); stroke: var(--furn); stroke-width: 1.5; }
+.house .fan { fill: var(--room); stroke: var(--furn); stroke-width: 1.5; }
+.house .fan-blade { fill: var(--furn); }
+.house .duct { fill: var(--unit); stroke: var(--furn); stroke-width: 1.5; }
+.house .furn .solid, .house .wet .solid { fill: var(--furn); stroke: var(--furn); stroke-width: 2; stroke-linecap: round; }
+.house .furn .fill { fill: var(--furn-fill); stroke: var(--furn); stroke-width: 1.5; }
+.house .furn .shade { fill: var(--lamp); stroke: var(--furn); stroke-width: 1.5; }
+.house .sofa { fill: var(--sofa); stroke: var(--furn); stroke-width: 1.5; }
+.house .sofa-arm { fill: var(--sofa-dark); stroke: var(--furn); stroke-width: 1.5; }
+.house .skin { fill: var(--skin); stroke: var(--furn); stroke-width: 1.5; }
+.house .body { fill: var(--shirt); stroke: var(--furn); stroke-width: 1.5; stroke-linejoin: round; }
+.house .tv { fill: var(--furn); }
+.house .rope { stroke: var(--furn); stroke-width: 1.5; }
+.house .shirt { fill: var(--shirt2); stroke: var(--furn); stroke-width: 1.2; stroke-linejoin: round; }
+.house .drop { fill: var(--cold); opacity: .8; }
+.house .tub { fill: var(--tub); stroke: var(--furn); stroke-width: 1.5; }
+.house .steam { fill: none; stroke: var(--steam); stroke-width: 2; stroke-linecap: round; opacity: .8; }
+.house .a-zero { stroke: var(--muted); fill: none; stroke-width: 1.5; stroke-dasharray: 4 4; }
+.house .h-hot { fill: var(--hot); stroke: var(--surface); stroke-width: 1.5; stroke-linejoin: round; filter: url(#f-soft); }
+.house .h-cold { fill: var(--cold); stroke: var(--surface); stroke-width: 1.5; stroke-linejoin: round; filter: url(#f-soft); }
+@media (prefers-reduced-motion: no-preference) {
+  .house .steam { animation: steam 2.4s ease-in-out infinite; }
+  @keyframes steam { 0% { transform: translateY(0); opacity: .8; } 100% { transform: translateY(-6px); opacity: 0; } }
+}
+
 /* 円グラフ（項目の色は固定。マイナスの項目は斜線） */
 .pie-wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
 .pie { flex: 0 1 220px; min-width: 180px; max-width: 240px; }
@@ -182,7 +226,7 @@ select:focus-visible, input:focus-visible, textarea:focus-visible, button:focus-
 
 /* ---------- cards ---------- */
 .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
-.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px 16px; min-width: 0; }
+.card { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px 16px; min-width: 0; }
 .card.span2 { grid-column: 1 / -1; }
 .card h2 { font-family: var(--font-display); font-size: 1.08rem; margin: 0; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .card h2 .tag { font-family: var(--font-body); font-size: .7rem; font-weight: 600; letter-spacing: .06em; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 0 6px; }
@@ -275,6 +319,7 @@ a { color: var(--accent); }
   .rows .row.head { display: none; }
   .rows .row .sub-fields { grid-template-columns: minmax(0, 1fr); }
   .total-num { font-size: 2rem; }
+  .house svg { min-width: 540px; }
   .doc dl.terms { grid-template-columns: minmax(0, 1fr); }
 }
 @media (prefers-reduced-motion: no-preference) {
@@ -285,3 +330,25 @@ a { color: var(--accent); }
   .card, .summary { break-inside: avoid; border-color: #999; }
   .panel[hidden] { display: none !important; }
 }
+
+/* 枠ごとの説明ポップアップ */
+.help-btn {
+  appearance: none; width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--accent); background: var(--surface);
+  color: var(--accent); font: 700 .8rem/1 var(--font-body); cursor: pointer; padding: 0; margin-left: auto; flex: 0 0 auto;
+}
+.help-btn:hover, .help-btn[aria-expanded="true"] { background: var(--accent); color: var(--accent-ink); }
+.eyebrow .help-btn { vertical-align: middle; margin-left: 6px; }
+.help-pop {
+  position: absolute; z-index: 20; top: 44px; right: 12px; width: min(400px, calc(100% - 24px));
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .18); padding: 12px 14px 6px; font-size: .85rem; line-height: 1.55;
+}
+.help-pop[hidden] { display: none !important; }
+.help-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 4px; }
+.help-head b { font-family: var(--font-display); font-size: .95rem; }
+.help-close { appearance: none; border: 0; background: var(--surface-2); color: var(--ink); width: 26px; height: 26px; border-radius: 50%; font-size: 1rem; cursor: pointer; }
+.help-body p { margin: 6px 0; }
+.help-body ul { margin: 4px 0 6px; padding-left: 1.3em; }
+.help-body li { margin: 2px 0; }
+.summary .help-pop { top: 36px; left: 12px; right: auto; }
+.chart-block .help-pop { left: auto; right: 12px; }

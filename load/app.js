@@ -150,9 +150,10 @@
       return el('div', { class: 'r' + (it[3] ? ' big' : '') }, [el('span', { text: it[0] }), out]);
     }));
   }
-  function card(title, tag, lead, body, cls) {
+  function card(title, tag, lead, body, cls, helpKey) {
     var h = el('h2', null, [title]);
     if (tag) h.appendChild(el('span', { class: 'tag', text: tag }));
+    if (helpKey) h.appendChild(helpButton(helpKey));
     var c = el('section', { class: 'card' + (cls ? ' ' + cls : '') }, [h]);
     if (lead) c.appendChild(el('p', { class: 'lead', text: lead }));
     body.forEach(function (b) { if (b) c.appendChild(b); });
@@ -193,6 +194,41 @@
     return box;
   }
 
+
+  /* ---------------- 枠ごとの説明ポップアップ ---------------- */
+  var HELP = window.LoadHelp || {};
+  function closeHelps(except) {
+    document.querySelectorAll('.help-pop').forEach(function (p) {
+      if (p !== except) { p.hidden = true; var b = p._btn; if (b) b.setAttribute('aria-expanded', 'false'); }
+    });
+  }
+  function helpButton(key) {
+    var h = HELP[key];
+    var btn = el('button', { type: 'button', class: 'help-btn', 'aria-expanded': 'false', 'aria-label': (h ? h.title : '説明') + 'の説明を表示', title: '説明を表示' }, ['?']);
+    var pop = null;
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (!pop) {
+        pop = el('div', { class: 'help-pop', role: 'dialog', 'aria-label': h ? h.title : '説明' });
+        var close = el('button', { type: 'button', class: 'help-close', 'aria-label': '閉じる' }, ['×']);
+        close.addEventListener('click', function () { pop.hidden = true; btn.setAttribute('aria-expanded', 'false'); btn.focus(); });
+        pop.appendChild(el('div', { class: 'help-head' }, [el('b', { text: h ? h.title : '' }), close]));
+        pop.appendChild(el('div', { class: 'help-body', html: h ? h.html : '' }));
+        pop.addEventListener('click', function (ev) { ev.stopPropagation(); });
+        pop._btn = btn;
+        pop.hidden = true;
+        btn.parentNode.parentNode.appendChild(pop);
+      }
+      var willOpen = pop.hidden;
+      closeHelps(pop);
+      pop.hidden = !willOpen;
+      btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+    });
+    return btn;
+  }
+  document.addEventListener('click', function () { closeHelps(null); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeHelps(null); });
+
   /* ---------------- 負荷計算タブ ---------------- */
   function buildLoadPanel(root) {
     var g = el('div', { class: 'grid2' });
@@ -200,33 +236,33 @@
     g.appendChild(card('室内と外気の条件', '基本', '設計したい室内の温湿度と、その時の外気を入れます。季節や時間帯ごとにファイルを分けて計算します。', [
       fields(['tIn', 'rhIn', 'tOut', 'rhOut', 'tNext', 'tCollect']),
       results([['室内の絶対湿度', 'load.xIn', 'g/kg', false, 2], ['外気の絶対湿度', 'load.xOut', 'g/kg', false, 2], ['室温と外気の温度差', 'load.dtOut', 'K', false, 1]])
-    ]));
+    ], null, 'cond'));
 
     g.appendChild(card('換気', '顕熱＋潜熱', '換気で入れ替わる空気が持ち込む熱と湿気です。熱交換換気なら効率を入れます。', [
       fields(['vent', 'effS', 'effL']),
       results([['顕熱エンタルピー差', 'load.dhS', 'kJ/kg', false, 2], ['潜熱エンタルピー差', 'load.dhL', 'kJ/kg', false, 2],
         ['換気の顕熱負荷', 'load.ventS', 'W', true], ['換気の潜熱負荷', 'load.ventL', 'W', true]])
-    ]));
+    ], null, 'vent'));
 
     g.appendChild(card('内部発熱（顕熱）', '顕熱', '家電や調理で室内に出る熱。使っている台数だけ数量に入れます（使わない機器は 0）。', [
       equipRows(SENS_ROWS, 'sens'),
       results([['内部発熱（顕熱）小計', 'sensSum', 'W', true]])
-    ]));
+    ], null, 'intS'));
 
     g.appendChild(card('内部発熱（潜熱）', '潜熱', '室内に出る水蒸気を熱量に換算した値。外気が乾燥している時（換気の潜熱がマイナス）は自動でマイナス扱いになります。', [
       equipRows(LAT_ROWS, 'lat'),
       results([['内部発熱（潜熱）小計', 'latSum', 'W', true]])
-    ]));
+    ], null, 'intL'));
 
     g.appendChild(card('人体', '顕熱＋潜熱', '人の体から出る熱と水蒸気です。', [
       fields(['people', 'peopleS', 'peopleL']),
       results([['人体の顕熱', 'load.peopleS', 'W'], ['人体の潜熱', 'load.peopleL', 'W']])
-    ]));
+    ], null, 'people'));
 
     g.appendChild(card('隣室・間仕切り', '顕熱', '部屋単位で計算する時に、隣の部屋との温度差で出入りする熱です。家全体なら 0 でかまいません。', [
       fields(['inflowQ', 'partitionA']),
       results([['隣室との温度差', 'load.dtNext', 'K', false, 1], ['暖冷気の流入', 'load.inflow', 'W'], ['間仕切りの熱貫流', 'load.partition', 'W'], ['室内干し（顕熱・自動）', 'load.dryS', 'W']])
-    ]));
+    ], null, 'room'));
 
     var solar = el('div', { class: 'rows' });
     solar.appendChild(el('div', { class: 'row head' }, [el('span', { text: '方位（目安）' }), el('span', { text: 'W/㎡' }), el('span', { text: '窓面積' }), el('span', { text: '負荷' })]));
@@ -238,12 +274,12 @@
         el('span', { class: 'out', 'data-out': 'load.' + s[0], 'data-unit': 'W' })
       ]));
     });
-    g.appendChild(card('窓からの日射取得', '顕熱', '窓 1㎡ あたりに入る日射熱 × 窓面積。日射遮蔽（庇・ブラインド）を考えた値を入れます。', [solar]));
+    g.appendChild(card('窓からの日射取得', '顕熱', '窓 1㎡ あたりに入る日射熱 × 窓面積。日射遮蔽（庇・ブラインド）を考えた値を入れます。', [solar], null, 'solar'));
 
     g.appendChild(card('外皮（壁・屋根・床・窓）', '顕熱', '外皮面積 × UA値 × 温度差 で、建物の外側を通って出入りする熱を求めます。', [
       fields(['envArea', 'ua']),
       results([['外皮の熱損失・熱取得', 'load.envelope', 'W', true]])
-    ]));
+    ], null, 'env'));
 
     var lh = el('div', { class: 'field full' }, [
       el('label', { for: 'in-latentHeat', text: '水の蒸発潜熱（加湿負荷の換算に使用）' }),
@@ -259,7 +295,7 @@
     g.appendChild(card('加湿・除湿', '潜熱', '室内の湿度を保つために必要な水の量です。プラスなら加湿、マイナスなら除湿が必要です。', [
       el('div', { class: 'fields' }, [lh]),
       results([['必要な加湿／除湿量', 'load.humid', 'L/日', true, 2], ['加湿に使う熱（加湿時のみ）', 'load.humidW', 'W']])
-    ]));
+    ], null, 'humid'));
 
     root.appendChild(g);
   }
@@ -280,11 +316,11 @@
     g.appendChild(card('Step 1　空気の状態を決める', null,
       '室内と外気の条件・換気量・熱交換率は「負荷計算」タブの値を使います。ここでは吸込み空気と吹出し温度を決めます。', [
         el('div', { class: 'fields' }, [src, field('tSupply')])
-      ]));
+      ], null, 'ac1'));
     g.appendChild(card('Step 2　風量を決める', null, '吹出口の大きさと風速から風量を求めます。', [
       fields(['ductL', 'ductS', 'ductD', 'vel', 'hours', 'vTerm']),
       results([['風量', 'ac.airflow', '㎥/h', true, 0], ['到達距離', 'ac.reach', 'm', false, 2], ['気流の降下量（＋降下／−上昇）', 'ac.drop', 'm', false, 2]])
-    ]));
+    ], null, 'ac2'));
 
     var tbl = el('table', { class: 'states' });
     tbl.innerHTML = '<thead><tr><th>空気</th><th>風量 ㎥/h</th><th>温度 ℃</th><th>相対湿度 %</th><th>絶対湿度 g/kg</th></tr></thead><tbody>' +
@@ -301,7 +337,7 @@
           ['負荷に対する能力の比', 'ac.ratioPct', '%', false, 0],
           ['空気が運んだ総熱量', 'ac.energy', 'kWh', false, 2], ['空気が運んだ総水量（除湿量）', 'ac.water', 'L', false, 2]]),
         el('p', { class: 'hint', text: 'エアコンの顕熱比はおおむね 50～80% の間で動きます。夏はエアコンの顕熱比を建物の顕熱比に合わせるように風量・吹出し温度を調整します。冬は顕熱比は無視してかまいません。' })
-      ], 'span2'));
+      ], 'span2', 'ac3'));
     root.appendChild(g);
   }
 
@@ -312,17 +348,17 @@
       fields(['pipeOD', 'pipeID', 'hIn', 'hOut', 'lambda', 'pipeLen', 'tWater', 'tAir']),
       results([['1m あたりの熱通過率', 'pipe.perM', 'W/mK', false, 3], ['水温と気温の差', 'pipe.dT', 'K', false, 1], ['パイプからの放熱量', 'pipe.heat', 'W', true],
         ['暖房負荷に対する割合', 'pipe.ratioPct', '%', false, 0]])
-    ]));
+    ], null, 'pipe'));
     g.appendChild(card('床・基礎の熱収支', null, '温めた床下から床を通って室内へ移る熱と、基礎の外周から外へ逃げる熱です。室温・外気温は「負荷計算」タブの値を使います。', [
       fields(['floorA', 'floorU', 'tUnder', 'psi', 'foundLen']),
       results([['床から室内へ移る熱', 'floor.toRoom', 'W', true], ['基礎から逃げる熱', 'floor.loss', 'W', true]])
-    ]));
+    ], null, 'floor'));
     g.appendChild(card('床ガラリからの熱供給（2つの空気の比較）', null, '2つの空気の温湿度と風量から、運ばれる熱と水の量を求めます。床ガラリの吹出しと室内の比較などに使います。', [
       fields(['a1T', 'a1RH', 'a2T', 'a2RH', 'ductL2', 'ductS2', 'ductD2', 'vel2', 'hours2']),
       results([['空気① 絶対湿度', 'air.a1.x', 'g/kg', false, 2], ['空気② 絶対湿度', 'air.a2.x', 'g/kg', false, 2], ['風量', 'air.airflow', '㎥/h', false, 1],
         ['顕熱差', 'air.dS', 'W'], ['潜熱差', 'air.dL', 'W'], ['全熱差', 'air.dT', 'W', true], ['顕熱比', 'air.shfPct', '%', false, 1],
         ['空気が運んだ総熱量', 'air.energy', 'kWh', false, 2], ['空気が運んだ総水量', 'air.water', 'L', false, 2]])
-    ], 'span2'));
+    ], 'span2', 'air'));
     root.appendChild(g);
   }
 
@@ -380,32 +416,43 @@
     var s = fmt(v, 0);
     return (v >= 0.5 ? '+' : '') + s + ' W';
   }
-  // 矢印（線＋三角）。太さは値の大きさ、色は符号
-  function arrow(x1, y1, x2, y2, v, max) {
+  // テキスト幅の見積もり（全角 ≈ 13px、半角 ≈ 7.5px、数値用フォント ≈ 8.6px）
+  function tw(str, mono) {
+    var w = 0;
+    for (var i = 0; i < str.length; i++) w += mono ? 8.6 : (str.charCodeAt(i) > 0x2e80 ? 13 : 7.5);
+    return w;
+  }
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+  // 先細りの矢印。太さは値の大きさ、色は符号
+  function tArrow(x1, y1, x2, y2, v, max) {
     var c = signClass(v);
-    if (c === 'zero') {
-      return '<line class="a-zero" x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" stroke-width="1.5"/>';
-    }
-    var sw = 3 + 9 * Math.min(1, Math.abs(v) / max);
-    var head = Math.max(11, sw * 2.1);
-    var dx = x2 - x1, dy = y2 - y1, len = Math.sqrt(dx * dx + dy * dy);
-    var ux = dx / len, uy = dy / len;
-    var bx = x2 - ux * head, by = y2 - uy * head; // 三角の底辺の中心
-    var hw = head * 0.6;
-    var pts = [x2 + ',' + y2, (bx - uy * hw) + ',' + (by + ux * hw), (bx + uy * hw) + ',' + (by - ux * hw)].join(' ');
-    var ex = x2 - ux * head * 0.8, ey = y2 - uy * head * 0.8;
-    return '<line class="a-' + c + '" x1="' + x1 + '" y1="' + y1 + '" x2="' + ex + '" y2="' + ey + '" stroke-width="' + sw.toFixed(1) + '"/>' +
-      '<polygon class="h-' + c + '" points="' + pts + '"/>';
+    if (c === 'zero') return '<line class="a-zero" x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '"/>';
+    var f = Math.min(1, Math.abs(v) / max);
+    var tail = 2 + 7 * f, head = 13 + 11 * f, hl = 14 + 8 * f;
+    var dx = x2 - x1, dy = y2 - y1, len = Math.sqrt(dx * dx + dy * dy) || 1;
+    var ux = dx / len, uy = dy / len, nx = -uy, ny = ux;
+    var bx = x2 - ux * hl, by = y2 - uy * hl;
+    var P = function (x, y) { return x.toFixed(1) + ',' + y.toFixed(1); };
+    var pts = [P(x1 + nx * tail / 2, y1 + ny * tail / 2), P(bx + nx * tail / 2, by + ny * tail / 2), P(bx + nx * head / 2, by + ny * head / 2),
+      P(x2, y2), P(bx - nx * head / 2, by - ny * head / 2), P(bx - nx * tail / 2, by - ny * tail / 2), P(x1 - nx * tail / 2, y1 - ny * tail / 2)].join(' ');
+    return '<polygon class="h-' + c + '" points="' + pts + '"/>';
   }
-  // 家の外 (ox,oy) と内 (ix,iy) を結ぶ流れ。プラスは外→内、マイナスは内→外
+  // 外 (ox,oy) と内 (ix,iy)。プラスは外→内（熱が入る）、マイナスは内→外（熱が逃げる）
   function flow(ox, oy, ix, iy, v, max) {
-    return v >= 0 ? arrow(ox, oy, ix, iy, v, max) : arrow(ix, iy, ox, oy, v, max);
+    return v >= 0 ? tArrow(ox, oy, ix, iy, v, max) : tArrow(ix, iy, ox, oy, v, max);
   }
-  function num(x, y, v, anchor) {
-    return '<text class="num ' + signClass(v) + '" x="' + x + '" y="' + y + '"' + (anchor ? ' text-anchor="' + anchor + '"' : '') + '>' + signed(v) + '</text>';
+  // 丸い札。lines: [{t:文字, c:クラス}]
+  function pill(cx, cy, lines, cls) {
+    var w = 0; lines.forEach(function (l) { w = Math.max(w, tw(l.t, l.c === 'num')); });
+    w += 18; var lh = 16, h = lines.length * lh + 10;
+    var s = '<g class="pill ' + (cls || '') + '"><rect x="' + (cx - w / 2) + '" y="' + (cy - h / 2) + '" width="' + w + '" height="' + h + '" rx="7"/>';
+    lines.forEach(function (l, i) {
+      s += '<text class="' + (l.c || '') + '" x="' + cx + '" y="' + (cy - h / 2 + 5 + lh * (i + 1) - 4) + '" text-anchor="middle">' + esc(l.t) + '</text>';
+    });
+    return s + '</g>';
   }
-  function txt(x, y, s, cls, anchor) {
-    return '<text' + (cls ? ' class="' + cls + '"' : '') + ' x="' + x + '" y="' + y + '"' + (anchor ? ' text-anchor="' + anchor + '"' : '') + '>' + s + '</text>';
+  function valPill(cx, cy, label, v) {
+    return pill(cx, cy, [{ t: label, c: 'lbl' }, { t: signed(v), c: 'num ' + signClass(v) }]);
   }
 
   function renderHouse(L) {
@@ -413,74 +460,115 @@
     L.breakdown.forEach(function (it) { b[it.key] = it.value; });
     var max = Math.max.apply(null, L.breakdown.map(function (i) { return Math.abs(i.value); }).concat([1]));
     var extras = L.breakdown.filter(function (it) { return it.extra && Math.abs(it.value) >= 0.5; });
-    var W = 480, H = 398 + extras.length * 22;
+    var W = 640, G = 380, H = G + 28 + extras.length * 22;
     var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="家の断面図で熱の出入りを示した熱負荷の内訳。合計 ' + signed(L.total) + '">';
+    s += '<defs>' +
+      '<linearGradient id="g-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="sky-a"/><stop offset="1" class="sky-b"/></linearGradient>' +
+      '<linearGradient id="g-ground" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="grd-a"/><stop offset="1" class="grd-b"/></linearGradient>' +
+      '<linearGradient id="g-glass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" class="gl-a"/><stop offset="1" class="gl-b"/></linearGradient>' +
+      '<linearGradient id="g-water" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="wt-a"/><stop offset="1" class="wt-b"/></linearGradient>' +
+      '<radialGradient id="g-sun"><stop offset="0" class="sun-a"/><stop offset="0.55" class="sun-a"/><stop offset="1" class="sun-b"/></radialGradient>' +
+      '<radialGradient id="g-glow"><stop offset="0" class="glow-a"/><stop offset="1" class="glow-b"/></radialGradient>' +
+      '<filter id="f-shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="4" stdDeviation="5" flood-opacity="0.22"/></filter>' +
+      '<filter id="f-soft" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-opacity="0.25"/></filter>' +
+      '</defs>';
 
-    // 地面・建物
-    s += '<line class="ground" x1="0" y1="386" x2="' + W + '" y2="386"/>';
-    s += '<rect class="bldg" x="110" y="165" width="260" height="221"/>';
-    s += '<polygon class="roof" points="90,170 240,72 390,170"/>';
-    s += '<rect class="glass" x="104" y="200" width="12" height="62"/>'; // 南の窓
+    // 空・地面
+    s += '<rect x="0" y="0" width="' + W + '" height="' + G + '" fill="url(#g-sky)"/>';
+    s += '<rect x="0" y="' + G + '" width="' + W + '" height="' + (H - G) + '" fill="url(#g-ground)"/>';
+    s += '<line class="ground" x1="0" y1="' + G + '" x2="' + W + '" y2="' + G + '"/>';
+    // 雲
+    s += '<g class="cloud"><ellipse cx="560" cy="58" rx="30" ry="12"/><ellipse cx="540" cy="52" rx="18" ry="11"/><ellipse cx="582" cy="52" rx="16" ry="9"/></g>';
+    // 木
+    s += '<g class="tree"><rect x="600" y="340" width="7" height="40"/><circle cx="603" cy="318" r="22"/><circle cx="590" cy="332" r="15"/><circle cx="617" cy="332" r="15"/></g>';
 
-    // 太陽と日射取得
-    s += '<circle class="sun" cx="40" cy="46" r="15"/>';
-    for (var i = 0; i < 8; i++) {
-      var a = i * Math.PI / 4, c1 = Math.cos(a), s1 = Math.sin(a);
-      s += '<line class="ray" x1="' + (40 + c1 * 20) + '" y1="' + (46 + s1 * 20) + '" x2="' + (40 + c1 * 27) + '" y2="' + (46 + s1 * 27) + '"/>';
+    // 太陽
+    s += '<circle cx="58" cy="72" r="46" fill="url(#g-glow)"/>';
+    for (var i = 0; i < 12; i++) {
+      var a = i * Math.PI / 6, c1 = Math.cos(a), s1 = Math.sin(a);
+      s += '<line class="ray" x1="' + (58 + c1 * 30) + '" y1="' + (72 + s1 * 30) + '" x2="' + (58 + c1 * (i % 2 ? 36 : 40)) + '" y2="' + (72 + s1 * (i % 2 ? 36 : 40)) + '"/>';
     }
-    s += txt(72, 38, '日射取得') + num(72, 58, b.solar);
-    s += b.solar >= 0.5 ? arrow(58, 66, 122, 214, b.solar, max) : arrow(58, 66, 122, 214, 0, max);
+    s += '<circle cx="58" cy="72" r="23" fill="url(#g-sun)"/>';
 
-    // 外皮（屋根と壁を貫く矢印）
-    s += flow(352, 96, 352, 196, b.env, max);
-    s += flow(26, 290, 128, 290, b.env, max);
-    s += txt(372, 30, '外皮') + txt(372, 47, '壁・屋根・窓', 'lbl-s') + num(372, 68, b.env);
-    s += txt(8, 272, '外皮', 'lbl-s');
+    // 建物（基礎・壁・屋根）
+    s += '<g filter="url(#f-shadow)">';
+    s += '<rect class="found" x="150" y="' + G + '" width="340" height="22"/>';
+    s += '<rect class="wall" x="150" y="190" width="340" height="' + (G - 190) + '"/>';
+    s += '<rect class="room" x="160" y="190" width="320" height="' + (G - 198) + '"/>';
+    s += '<rect class="slab" x="150" y="' + (G - 8) + '" width="340" height="8"/>';
+    s += '<polygon class="roof" points="118,202 320,66 522,202 522,194 320,58 118,194"/>';
+    s += '<polygon class="roof-under" points="118,202 320,66 522,202 500,202 320,88 140,202"/>';
+    s += '<polygon class="attic" points="150,190 320,80 490,190"/>';
+    s += '<rect class="chimney" x="412" y="86" width="22" height="40"/>';
+    s += '</g>';
+    // 窓（南の壁、断面）
+    s += '<rect class="frame" x="147" y="232" width="16" height="76" rx="2"/><rect x="150" y="236" width="10" height="68" fill="url(#g-glass)"/>';
 
-    // 換気（右の壁のダクト）
-    s += '<rect class="duct" x="362" y="226" width="30" height="12" rx="2"/>';
-    s += '<rect class="duct" x="362" y="296" width="30" height="12" rx="2"/>';
-    s += flow(472, 232, 352, 232, b.ventS, max);
-    s += flow(472, 302, 352, 302, b.ventL, max);
-    s += txt(398, 188, '換気・顕熱', 'lbl-s') + num(398, 208, b.ventS);
-    s += txt(398, 258, '換気・潜熱', 'lbl-s') + num(398, 278, b.ventL);
+    // 換気ユニットとダクト
+    s += '<rect class="unit" x="444" y="210" width="36" height="84" rx="4"/>';
+    s += '<circle class="fan" cx="462" cy="252" r="11"/><path class="fan-blade" d="M462 252 l0 -9 a9 9 0 0 1 8 5 z M462 252 l8 5 a9 9 0 0 1 -8 4 z M462 252 l-8 4 a9 9 0 0 1 0 -9 z"/>';
+    s += '<rect class="duct" x="480" y="218" width="36" height="12" rx="2"/><rect class="duct" x="480" y="274" width="36" height="12" rx="2"/>';
+
+    // 室内の様子：ソファと人、テレビ、ランプ
+    var F = G - 8; // 床面
+    s += '<g class="furn">';
+    s += '<rect class="fill" x="176" y="' + (F - 10) + '" width="26" height="4"/><rect x="188" y="' + (F - 82) + '" width="3" height="72" class="solid"/><polygon class="shade" points="176,' + (F - 82) + ' 202,' + (F - 82) + ' 196,' + (F - 100) + ' 182,' + (F - 100) + '"/>';
+    s += '<rect class="sofa" x="214" y="' + (F - 44) + '" width="84" height="22" rx="7"/><rect class="sofa" x="214" y="' + (F - 30) + '" width="84" height="24" rx="6"/><rect class="sofa-arm" x="210" y="' + (F - 36) + '" width="12" height="30" rx="5"/><rect class="sofa-arm" x="290" y="' + (F - 36) + '" width="12" height="30" rx="5"/>';
+    s += '<circle class="skin" cx="254" cy="' + (F - 66) + '" r="9"/><path class="body" d="M243 ' + (F - 52) + ' h22 v20 h-6 v10 h-10 v-10 h-6 z"/>';
+    s += '<rect class="tv" x="320" y="' + (F - 70) + '" width="52" height="32" rx="3"/><rect x="323" y="' + (F - 67) + '" width="46" height="26" fill="url(#g-glass)"/><rect class="solid" x="344" y="' + (F - 38) + '" width="4" height="10"/><rect class="solid" x="332" y="' + (F - 28) + '" width="28" height="3"/>';
+    s += '<rect class="fill" x="314" y="' + (F - 20) + '" width="64" height="20" rx="2"/>';
+    s += '</g>';
+    // 間仕切り（腰壁）
+    s += '<rect class="wall" x="388" y="' + (F - 90) + '" width="6" height="90"/>';
+    // 洗濯物と浴槽
+    s += '<g class="wet">';
+    s += '<line class="rope" x1="400" y1="' + (F - 108) + '" x2="440" y2="' + (F - 108) + '"/>';
+    [404, 424].forEach(function (x) {
+      s += '<path class="shirt" d="M' + x + ' ' + (F - 106) + ' h12 l5 4 l-2 5 l-3 -1 v14 h-12 v-14 l-3 1 l-2 -5 z"/>';
+      s += '<path class="drop" d="M' + (x + 6) + ' ' + (F - 80) + ' q-3 5 0 7 q3 -2 0 -7 z"/>';
+    });
+    s += '<path class="tub" d="M402 ' + (F - 34) + ' h72 v18 q0 12 -12 12 h-48 q-12 0 -12 -12 z"/><rect x="406" y="' + (F - 32) + '" width="64" height="12" fill="url(#g-water)"/>';
+    s += '<path class="solid" d="M470 ' + (F - 48) + ' v14 M470 ' + (F - 48) + ' h-8"/>';
+    [416, 436, 456].forEach(function (x, k) {
+      s += '<path class="steam" d="M' + x + ' ' + (F - 40) + ' c-5 -6 5 -10 0 -16 c-4 -5 3 -8 0 -12" style="animation-delay:' + (k * 0.4) + 's"/>';
+    });
+    s += '</g>';
+
+    // --- 熱の矢印 ---
+    // 日射：太陽 → 窓
+    s += flow(92, 100, 158, 262, Math.max(0, b.solar), max);
+    s += valPill(150, 52, '日射取得', b.solar);
+    // 外皮：屋根と左壁
+    s += flow(360, 96, 360, 180, b.env, max);
+    s += flow(64, 340, 158, 340, b.env, max);
+    s += valPill(470, 48, '外皮（壁・屋根・窓）', b.env);
+    s += '<text class="lbl-s" x="66" y="320">外皮</text>';
+    // 換気：右の壁
+    s += flow(610, 224, 518, 224, b.ventS, max);
+    s += flow(610, 280, 518, 280, b.ventL, max);
+    s += valPill(566, 190, '換気・顕熱', b.ventS);
+    s += valPill(566, 314, '換気・潜熱', b.ventL);
+    // 内部発熱（顕熱・潜熱）：家具から上へ
+    s += (b.intS >= 0 ? tArrow(254, F - 112, 254, 276, b.intS, max) : tArrow(254, 276, 254, F - 112, b.intS, max));
+    s += (b.intL >= 0 ? tArrow(436, F - 126, 436, 276, b.intL, max) : tArrow(436, 276, 436, F - 126, b.intL, max));
+    s += valPill(254, 254, '内部発熱・顕熱', b.intS);
+    s += valPill(436, 254, '内部発熱・潜熱', b.intL);
+
+    // 室内・屋外の温湿度
+    var cond = function (t, rh) { return fmt(t, 1) + '℃　' + fmt(rh, 0) + '%'; };
+    s += pill(320, 206, [{ t: '室内　' + cond(state.tIn, state.rhIn) + '　' + fmt(L.xIn, 1) + ' g/kg', c: 'cond' }], 'cond-pill');
+    s += pill(72, 262, [{ t: '屋外', c: 'lbl' }, { t: cond(state.tOut, state.rhOut), c: 'cond' }, { t: fmt(L.xOut, 1) + ' g/kg', c: 'lbl' }], 'cond-pill');
 
     // 合計（屋根裏）
     var tc = signClass(L.total);
-    s += txt(240, 112, '合計', 'lbl-s', 'middle');
-    s += '<text class="total t-' + tc + '" x="240" y="140" text-anchor="middle">' + signed(L.total) + '</text>';
-    s += txt(240, 159, tc === 'hot' ? '冷房が必要' : tc === 'cold' ? '暖房が必要' : '負荷ほぼゼロ', 'lbl-s', 'middle');
-
-    // 屋内・屋外の温湿度
-    var cond = function (t, rh) { return fmt(t, 1) + '℃・' + fmt(rh, 0) + '%'; };
-    s += '<text class="cond" x="240" y="190" text-anchor="middle"><tspan class="lbl-s">室内　</tspan>' + cond(state.tIn, state.rhIn) +
-      '<tspan class="lbl-s">　' + fmt(L.xIn, 1) + ' g/kg</tspan></text>';
-    s += txt(8, 332, '屋外', 'lbl-s') + '<text class="cond" x="8" y="352">' + cond(state.tOut, state.rhOut) + '</text>' +
-      txt(8, 370, fmt(L.xOut, 1) + ' g/kg', 'lbl-s');
-
-    s += '<g transform="translate(0,26)">';
-    // 内部発熱（顕熱）：人・テレビ
-    s += txt(180, 192, '内部発熱・顕熱', 'lbl-s', 'middle') + num(180, 212, b.intS, 'middle');
-    s += b.intS >= 0 ? arrow(180, 290, 180, 226, b.intS, max) : arrow(180, 226, 180, 290, b.intS, max);
-    s += '<circle class="icon" cx="148" cy="300" r="7"/>';
-    s += '<path class="icon" d="M148 308 V334 M136 318 H160 M148 334 L139 352 M148 334 L157 352"/>';
-    s += '<rect class="icon" x="194" y="306" width="34" height="23" rx="2"/><path class="icon" d="M211 329 V340 M201 342 H221"/>';
-
-    // 内部発熱（潜熱）：洗濯物・浴槽・湯気
-    s += txt(296, 192, '内部発熱・潜熱', 'lbl-s', 'middle') + num(296, 212, b.intL, 'middle');
-    s += b.intL >= 0 ? arrow(296, 290, 296, 226, b.intL, max) : arrow(296, 226, 296, 290, b.intL, max);
-    s += '<path class="icon" d="M258 300 H334"/>';
-    [266, 290, 314].forEach(function (x) {
-      s += '<path class="icon" d="M' + (x - 6) + ' 300 v14 h14 v-14"/>';
-      s += '<path class="drop" d="M' + (x + 1) + ' 318 q-4 6 0 8 q4 -2 0 -8z"/>';
-    });
-    s += '<path class="icon" d="M262 334 H332 V342 Q332 352 322 352 H272 Q262 352 262 342 Z"/>';
-    s += '</g>';
+    s += '<text class="lbl-s" x="320" y="124" text-anchor="middle">合計</text>';
+    s += '<text class="total t-' + tc + '" x="320" y="152" text-anchor="middle">' + signed(L.total) + '</text>';
+    s += '<text class="lbl-s" x="320" y="172" text-anchor="middle">' + (tc === 'hot' ? '冷房が必要' : tc === 'cold' ? '暖房が必要' : '負荷ほぼゼロ') + '</text>';
 
     // 原表のグラフにない項目（0 でないときだけ）
     extras.forEach(function (it, k) {
-      var y = 410 + k * 22;
-      s += txt(8, y, it.label) + num(150, y, it.value);
+      var y = G + 20 + k * 22;
+      s += '<text x="12" y="' + y + '">' + esc(it.label) + '</text><text class="num ' + signClass(it.value) + '" x="' + (12 + tw(it.label) + 10) + '" y="' + y + '">' + signed(it.value) + '</text>';
     });
     s += '</svg>';
     document.getElementById('house').innerHTML = s;
@@ -692,6 +780,8 @@
     setupIO();
     setupTabs();
     setupView();
+    document.getElementById('sum-help').appendChild(helpButton('summary'));
+    document.querySelector('.chart-head h2').appendChild(helpButton('chart'));
     render();
   }
 
