@@ -135,7 +135,12 @@
     opts = opts || {};
     var wrap = el('div', { class: 'field' + (opts.full ? ' full' : '') });
     wrap.appendChild(el('label', { for: 'in-' + key, text: f.label }));
-    wrap.appendChild(el('div', { class: 'inrow' }, [numberInput(key), el('span', { class: 'unit', text: f.unit })]));
+    var row = el('div', { class: 'inrow' }, [numberInput(key), el('span', { class: 'unit', text: f.unit })]);
+    if (opts.out) {
+      var o = el('span', { class: 'inline-out', 'data-out': opts.out[0], 'data-unit': opts.out[1] || '', 'data-d': opts.out[2] || 0, 'data-prefix': opts.out[3] || '' });
+      row.appendChild(o);
+    }
+    wrap.appendChild(row);
     if (f.hint) wrap.appendChild(el('span', { class: 'hint', text: f.hint }));
     return wrap;
   }
@@ -234,8 +239,9 @@
     var g = el('div', { class: 'grid2' });
 
     g.appendChild(card('室内と外気の条件', '基本', '設計したい室内の温湿度と、その時の外気を入れます。季節や時間帯ごとにファイルを分けて計算します。', [
-      fields(['tIn', 'rhIn', 'tOut', 'rhOut', 'tNext', 'tCollect']),
-      results([['室内の絶対湿度', 'load.xIn', 'g/kg', false, 2], ['外気の絶対湿度', 'load.xOut', 'g/kg', false, 2], ['室温と外気の温度差', 'load.dtOut', 'K', false, 1]])
+      el('div', { class: 'fields' }, [field('tIn'), field('rhIn', { out: ['load.xIn', 'g/kg', 2, '絶対湿度'] }),
+        field('tOut'), field('rhOut', { out: ['load.xOut', 'g/kg', 2, '絶対湿度'] }), field('tNext'), field('tCollect')]),
+      results([['室温と外気の温度差', 'load.dtOut', 'K', false, 1]])
     ], null, 'cond'));
 
     g.appendChild(card('換気', '顕熱＋潜熱', '換気で入れ替わる空気が持ち込む熱と湿気です。熱交換換気なら効率を入れます。', [
@@ -648,7 +654,8 @@
       var d = node.getAttribute('data-d');
       var digits = d !== null ? +d : 0;
       var unit = node.getAttribute('data-unit') || '';
-      node.textContent = fmt(v, digits) + (unit ? ' ' + unit : '');
+      var prefix = node.getAttribute('data-prefix');
+      node.textContent = (prefix ? prefix + ' ' : '') + fmt(v, digits) + (unit ? ' ' + unit : '');
       if (SIGNED.test(path)) {
         node.classList.remove('hot', 'cold', 'zero');
         node.classList.add(signClass(v));

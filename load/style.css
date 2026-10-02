@@ -238,6 +238,8 @@ select:focus-visible, input:focus-visible, textarea:focus-visible, button:focus-
 .field > label { font-size: .85rem; font-weight: 600; }
 .field .inrow { display: flex; align-items: center; gap: 6px; }
 .field .unit { font-size: .8rem; color: var(--muted); white-space: nowrap; min-width: 2.6em; }
+.field .inline-out { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: .9rem; font-weight: 600; white-space: nowrap; margin-left: auto; padding: 4px 8px; border-radius: 6px; background: var(--surface-2); }
+.field .inrow:has(.inline-out) input { max-width: 7em; }
 .hint { font-size: .75rem; color: var(--muted); line-height: 1.45; white-space: pre-line; }
 .check { display: flex; gap: 8px; align-items: center; font-size: .85rem; font-weight: 600; }
 
