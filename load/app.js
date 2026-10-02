@@ -426,6 +426,7 @@
   }
 
   /* ---------------- 家のイラスト ---------------- */
+  var HOUSE_IMG = 'house-canva.png';
   function signed(v) {
     if (!isFinite(v)) return '—';
     var s = fmt(v, 0);
@@ -434,7 +435,7 @@
   // テキスト幅の見積もり（全角 ≈ 13px、半角 ≈ 7.5px、数値用フォント ≈ 8.6px）
   function tw(str, mono) {
     var w = 0;
-    for (var i = 0; i < str.length; i++) w += mono ? 8.6 : (str.charCodeAt(i) > 0x2e80 ? 13 : 7.5);
+    for (var i = 0; i < str.length; i++) w += str.charCodeAt(i) > 0x2e80 ? 13.5 : (mono ? 8.6 : 7.5);
     return w;
   }
   function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
@@ -458,11 +459,17 @@
   }
   // 丸い札。lines: [{t:文字, c:クラス}]
   function pill(cx, cy, lines, cls) {
-    var w = 0; lines.forEach(function (l) { w = Math.max(w, tw(l.t, l.c === 'num')); });
-    w += 18; var lh = 16, h = lines.length * lh + 10;
+    var w = 0, h = 10, lhs = [];
+    lines.forEach(function (l) {
+      var big = /total/.test(l.c || ''), mono = /num|total|cond/.test(l.c || '');
+      w = Math.max(w, tw(l.t, mono) * (big ? 1.7 : 1)); var lh = big ? 28 : 16; lhs.push(lh); h += lh;
+    });
+    w += 18;
     var s = '<g class="pill ' + (cls || '') + '"><rect x="' + (cx - w / 2) + '" y="' + (cy - h / 2) + '" width="' + w + '" height="' + h + '" rx="7"/>';
+    var y = cy - h / 2 + 5;
     lines.forEach(function (l, i) {
-      s += '<text class="' + (l.c || '') + '" x="' + cx + '" y="' + (cy - h / 2 + 5 + lh * (i + 1) - 4) + '" text-anchor="middle">' + esc(l.t) + '</text>';
+      y += lhs[i];
+      s += '<text class="' + (l.c || '') + '" x="' + cx + '" y="' + (y - (lhs[i] > 16 ? 7 : 4)) + '" text-anchor="middle">' + esc(l.t) + '</text>';
     });
     return s + '</g>';
   }
@@ -475,114 +482,45 @@
     L.breakdown.forEach(function (it) { b[it.key] = it.value; });
     var max = Math.max.apply(null, L.breakdown.map(function (i) { return Math.abs(i.value); }).concat([1]));
     var extras = L.breakdown.filter(function (it) { return it.extra && Math.abs(it.value) >= 0.5; });
-    var W = 640, G = 380, H = G + 28 + extras.length * 22;
+    // 背景は Canva で生成した断面図（600×400 相当）。その上に矢印と札を重ねる
+    var W = 600, IH = 400, H = IH + (extras.length ? 10 + extras.length * 22 : 0);
     var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="家の断面図で熱の出入りを示した熱負荷の内訳。合計 ' + signed(L.total) + '">';
-    s += '<defs>' +
-      '<linearGradient id="g-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="sky-a"/><stop offset="1" class="sky-b"/></linearGradient>' +
-      '<linearGradient id="g-ground" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="grd-a"/><stop offset="1" class="grd-b"/></linearGradient>' +
-      '<linearGradient id="g-glass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" class="gl-a"/><stop offset="1" class="gl-b"/></linearGradient>' +
-      '<linearGradient id="g-water" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="wt-a"/><stop offset="1" class="wt-b"/></linearGradient>' +
-      '<radialGradient id="g-sun"><stop offset="0" class="sun-a"/><stop offset="0.55" class="sun-a"/><stop offset="1" class="sun-b"/></radialGradient>' +
-      '<radialGradient id="g-glow"><stop offset="0" class="glow-a"/><stop offset="1" class="glow-b"/></radialGradient>' +
-      '<filter id="f-shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="4" stdDeviation="5" flood-opacity="0.22"/></filter>' +
-      '<filter id="f-soft" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-opacity="0.25"/></filter>' +
-      '</defs>';
+    s += '<defs><filter id="f-soft" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-opacity="0.3"/></filter></defs>';
+    s += '<image href="' + HOUSE_IMG + '" x="0" y="0" width="' + W + '" height="' + IH + '" preserveAspectRatio="xMidYMid slice"/>';
+    if (extras.length) s += '<rect class="extra-band" x="0" y="' + IH + '" width="' + W + '" height="' + (H - IH) + '"/>';
 
-    // 空・地面
-    s += '<rect x="0" y="0" width="' + W + '" height="' + G + '" fill="url(#g-sky)"/>';
-    s += '<rect x="0" y="' + G + '" width="' + W + '" height="' + (H - G) + '" fill="url(#g-ground)"/>';
-    s += '<line class="ground" x1="0" y1="' + G + '" x2="' + W + '" y2="' + G + '"/>';
-    // 雲
-    s += '<g class="cloud"><ellipse cx="560" cy="58" rx="30" ry="12"/><ellipse cx="540" cy="52" rx="18" ry="11"/><ellipse cx="582" cy="52" rx="16" ry="9"/></g>';
-    // 木
-    s += '<g class="tree"><rect x="600" y="340" width="7" height="40"/><circle cx="603" cy="318" r="22"/><circle cx="590" cy="332" r="15"/><circle cx="617" cy="332" r="15"/></g>';
-
-    // 太陽
-    s += '<circle cx="58" cy="72" r="46" fill="url(#g-glow)"/>';
-    for (var i = 0; i < 12; i++) {
-      var a = i * Math.PI / 6, c1 = Math.cos(a), s1 = Math.sin(a);
-      s += '<line class="ray" x1="' + (58 + c1 * 30) + '" y1="' + (72 + s1 * 30) + '" x2="' + (58 + c1 * (i % 2 ? 36 : 40)) + '" y2="' + (72 + s1 * (i % 2 ? 36 : 40)) + '"/>';
-    }
-    s += '<circle cx="58" cy="72" r="23" fill="url(#g-sun)"/>';
-
-    // 建物（基礎・壁・屋根）
-    s += '<g filter="url(#f-shadow)">';
-    s += '<rect class="found" x="150" y="' + G + '" width="340" height="22"/>';
-    s += '<rect class="wall" x="150" y="190" width="340" height="' + (G - 190) + '"/>';
-    s += '<rect class="room" x="160" y="190" width="320" height="' + (G - 198) + '"/>';
-    s += '<rect class="slab" x="150" y="' + (G - 8) + '" width="340" height="8"/>';
-    s += '<polygon class="roof" points="118,202 320,66 522,202 522,194 320,58 118,194"/>';
-    s += '<polygon class="roof-under" points="118,202 320,66 522,202 500,202 320,88 140,202"/>';
-    s += '<polygon class="attic" points="150,190 320,80 490,190"/>';
-    s += '<rect class="chimney" x="412" y="86" width="22" height="40"/>';
-    s += '</g>';
-    // 窓（南の壁、断面）
-    s += '<rect class="frame" x="147" y="232" width="16" height="76" rx="2"/><rect x="150" y="236" width="10" height="68" fill="url(#g-glass)"/>';
-
-    // 換気ユニットとダクト
-    s += '<rect class="unit" x="444" y="210" width="36" height="84" rx="4"/>';
-    s += '<circle class="fan" cx="462" cy="252" r="11"/><path class="fan-blade" d="M462 252 l0 -9 a9 9 0 0 1 8 5 z M462 252 l8 5 a9 9 0 0 1 -8 4 z M462 252 l-8 4 a9 9 0 0 1 0 -9 z"/>';
-    s += '<rect class="duct" x="480" y="218" width="36" height="12" rx="2"/><rect class="duct" x="480" y="274" width="36" height="12" rx="2"/>';
-
-    // 室内の様子：ソファと人、テレビ、ランプ
-    var F = G - 8; // 床面
-    s += '<g class="furn">';
-    s += '<rect class="fill" x="176" y="' + (F - 10) + '" width="26" height="4"/><rect x="188" y="' + (F - 82) + '" width="3" height="72" class="solid"/><polygon class="shade" points="176,' + (F - 82) + ' 202,' + (F - 82) + ' 196,' + (F - 100) + ' 182,' + (F - 100) + '"/>';
-    s += '<rect class="sofa" x="214" y="' + (F - 44) + '" width="84" height="22" rx="7"/><rect class="sofa" x="214" y="' + (F - 30) + '" width="84" height="24" rx="6"/><rect class="sofa-arm" x="210" y="' + (F - 36) + '" width="12" height="30" rx="5"/><rect class="sofa-arm" x="290" y="' + (F - 36) + '" width="12" height="30" rx="5"/>';
-    s += '<circle class="skin" cx="254" cy="' + (F - 66) + '" r="9"/><path class="body" d="M243 ' + (F - 52) + ' h22 v20 h-6 v10 h-10 v-10 h-6 z"/>';
-    s += '<rect class="tv" x="320" y="' + (F - 70) + '" width="52" height="32" rx="3"/><rect x="323" y="' + (F - 67) + '" width="46" height="26" fill="url(#g-glass)"/><rect class="solid" x="344" y="' + (F - 38) + '" width="4" height="10"/><rect class="solid" x="332" y="' + (F - 28) + '" width="28" height="3"/>';
-    s += '<rect class="fill" x="314" y="' + (F - 20) + '" width="64" height="20" rx="2"/>';
-    s += '</g>';
-    // 間仕切り（腰壁）
-    s += '<rect class="wall" x="388" y="' + (F - 90) + '" width="6" height="90"/>';
-    // 洗濯物と浴槽
-    s += '<g class="wet">';
-    s += '<line class="rope" x1="400" y1="' + (F - 108) + '" x2="440" y2="' + (F - 108) + '"/>';
-    [404, 424].forEach(function (x) {
-      s += '<path class="shirt" d="M' + x + ' ' + (F - 106) + ' h12 l5 4 l-2 5 l-3 -1 v14 h-12 v-14 l-3 1 l-2 -5 z"/>';
-      s += '<path class="drop" d="M' + (x + 6) + ' ' + (F - 80) + ' q-3 5 0 7 q3 -2 0 -7 z"/>';
-    });
-    s += '<path class="tub" d="M402 ' + (F - 34) + ' h72 v18 q0 12 -12 12 h-48 q-12 0 -12 -12 z"/><rect x="406" y="' + (F - 32) + '" width="64" height="12" fill="url(#g-water)"/>';
-    s += '<path class="solid" d="M470 ' + (F - 48) + ' v14 M470 ' + (F - 48) + ' h-8"/>';
-    [416, 436, 456].forEach(function (x, k) {
-      s += '<path class="steam" d="M' + x + ' ' + (F - 40) + ' c-5 -6 5 -10 0 -16 c-4 -5 3 -8 0 -12" style="animation-delay:' + (k * 0.4) + 's"/>';
-    });
-    s += '</g>';
-
-    // --- 熱の矢印 ---
-    // 日射：太陽 → 窓
-    s += flow(92, 100, 158, 262, Math.max(0, b.solar), max);
-    s += valPill(150, 52, '日射取得', b.solar);
-    // 外皮：屋根と左壁
-    s += flow(360, 96, 360, 180, b.env, max);
-    s += flow(64, 340, 158, 340, b.env, max);
-    s += valPill(470, 48, '外皮（壁・屋根・窓）', b.env);
-    s += '<text class="lbl-s" x="66" y="320">外皮</text>';
-    // 換気：右の壁
-    s += flow(610, 224, 518, 224, b.ventS, max);
-    s += flow(610, 280, 518, 280, b.ventL, max);
-    s += valPill(566, 190, '換気・顕熱', b.ventS);
-    s += valPill(566, 314, '換気・潜熱', b.ventL);
-    // 内部発熱（顕熱・潜熱）：家具から上へ
-    s += (b.intS >= 0 ? tArrow(254, F - 112, 254, 276, b.intS, max) : tArrow(254, 276, 254, F - 112, b.intS, max));
-    s += (b.intL >= 0 ? tArrow(436, F - 126, 436, 276, b.intL, max) : tArrow(436, 276, 436, F - 126, b.intL, max));
-    s += valPill(254, 254, '内部発熱・顕熱', b.intS);
-    s += valPill(436, 254, '内部発熱・潜熱', b.intL);
+    // 日射：太陽 → 左の窓
+    s += flow(92, 82, 150, 258, Math.max(0, b.solar), max);
+    s += valPill(150, 42, '日射取得', b.solar);
+    // 外皮：屋根（屋根裏から外へ）と左の壁
+    s += flow(410, 108, 410, 182, b.env, max);
+    s += flow(48, 310, 138, 310, b.env, max);
+    s += valPill(450, 44, '外皮（壁・屋根・窓）', b.env);
+    s += '<text class="lbl-s halo" x="52" y="296">外皮</text>';
+    // 換気：右の壁のダクト（上：顕熱、下：潜熱）
+    s += flow(592, 243, 497, 243, b.ventS, max);
+    s += flow(592, 272, 497, 272, b.ventL, max);
+    s += valPill(548, 212, '換気・顕熱', b.ventS);
+    s += valPill(548, 304, '換気・潜熱', b.ventL);
+    // 内部発熱：家具・浴室から上へ
+    s += (b.intS >= 0 ? tArrow(240, 300, 240, 247, b.intS, max) : tArrow(240, 247, 240, 300, b.intS, max));
+    s += (b.intL >= 0 ? tArrow(400, 296, 400, 243, b.intL, max) : tArrow(400, 243, 400, 296, b.intL, max));
+    s += valPill(238, 223, '内部発熱・顕熱', b.intS);
+    s += valPill(400, 219, '内部発熱・潜熱', b.intL);
 
     // 室内・屋外の温湿度
     var cond = function (t, rh) { return fmt(t, 1) + '℃　' + fmt(rh, 0) + '%'; };
-    s += pill(320, 206, [{ t: '室内　' + cond(state.tIn, state.rhIn) + '　' + fmt(L.xIn, 1) + ' g/kg', c: 'cond' }], 'cond-pill');
-    s += pill(72, 262, [{ t: '屋外', c: 'lbl' }, { t: cond(state.tOut, state.rhOut), c: 'cond' }, { t: fmt(L.xOut, 1) + ' g/kg', c: 'lbl' }], 'cond-pill');
+    s += pill(300, 178, [{ t: '室内　' + cond(state.tIn, state.rhIn) + '　' + fmt(L.xIn, 1) + ' g/kg', c: 'cond' }], 'cond-pill');
+    s += pill(60, 240, [{ t: '屋外', c: 'lbl' }, { t: cond(state.tOut, state.rhOut), c: 'cond' }, { t: fmt(L.xOut, 1) + ' g/kg', c: 'lbl' }], 'cond-pill');
 
     // 合計（屋根裏）
     var tc = signClass(L.total);
-    s += '<text class="lbl-s" x="320" y="124" text-anchor="middle">合計</text>';
-    s += '<text class="total t-' + tc + '" x="320" y="152" text-anchor="middle">' + signed(L.total) + '</text>';
-    s += '<text class="lbl-s" x="320" y="172" text-anchor="middle">' + (tc === 'hot' ? '冷房が必要' : tc === 'cold' ? '暖房が必要' : '負荷ほぼゼロ') + '</text>';
+    s += pill(300, 128, [{ t: '合計', c: 'lbl' }, { t: signed(L.total), c: 'total t-' + tc },
+      { t: tc === 'hot' ? '冷房が必要' : tc === 'cold' ? '暖房が必要' : '負荷ほぼゼロ', c: 'lbl' }], 'total-pill');
 
     // 原表のグラフにない項目（0 でないときだけ）
     extras.forEach(function (it, k) {
-      var y = G + 20 + k * 22;
+      var y = IH + 24 + k * 22;
       s += '<text x="12" y="' + y + '">' + esc(it.label) + '</text><text class="num ' + signClass(it.value) + '" x="' + (12 + tw(it.label) + 10) + '" y="' + y + '">' + signed(it.value) + '</text>';
     });
     s += '</svg>';
