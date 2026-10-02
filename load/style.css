@@ -322,6 +322,7 @@ a { color: var(--accent); }
   .rows .row .sub-fields { grid-template-columns: minmax(0, 1fr); }
   .total-num { font-size: 2rem; }
   .house svg { min-width: 540px; }
+  .psy-wrap svg { min-width: 760px; }
   .doc dl.terms { grid-template-columns: minmax(0, 1fr); }
 }
 @media (prefers-reduced-motion: no-preference) {
@@ -354,3 +355,7 @@ a { color: var(--accent); }
 .help-body li { margin: 2px 0; }
 .summary .help-pop { top: 36px; left: 12px; right: auto; }
 .chart-block .help-pop { left: auto; right: 12px; }
+
+/* 空気線図（線図アプリの描画をそのまま使うため、紙面は常に白） */
+.psy-wrap { background: #fff; border: 1px solid var(--line); border-radius: 8px; overflow-x: auto; }
+.psy-wrap svg { display: block; width: 100%; height: auto; }
