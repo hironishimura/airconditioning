@@ -165,6 +165,61 @@ table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nu
 .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
 .note { margin: 8px 0 0; font-size: 12px; color: var(--muted); }
 
+/* 説明ポップアップ */
+.help-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  margin-left: 6px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  vertical-align: 1px;
+}
+.help-btn:hover, .help-btn[aria-expanded=true] { border-color: var(--accent); color: var(--accent); background: var(--surface); }
+.help-btn-chart { position: absolute; top: 8px; right: 8px; margin: 0; width: 24px; height: 24px; background: #fff; border-color: #d0d7df; color: #5c6876; }
+
+.help-pop {
+  position: absolute;
+  z-index: 100;
+  width: min(380px, calc(100vw - 32px));
+  max-height: min(70vh, 560px);
+  overflow-y: auto;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .18);
+  font-size: 13px;
+  line-height: 1.65;
+}
+.help-pop:focus { outline: none; }
+.help-pop.sheet { position: fixed; left: 16px; right: 16px; bottom: 16px; width: auto; max-height: 65vh; }
+.help-pop-head {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 8px 8px 14px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+.help-pop-head h3 { margin: 0; font-size: 14px; }
+.help-pop-close { padding: 0 8px; border: none; background: none; font-size: 18px; line-height: 1; color: var(--muted); }
+.help-pop-body { padding: 8px 14px 12px; }
+.help-pop-body p { margin: 6px 0; }
+.help-pop-body ul { margin: 6px 0; padding-left: 1.3em; }
+.help-pop-body li { margin: 2px 0; }
+.help-note { padding: 6px 8px; border-radius: 6px; background: var(--hover); font-size: 12px; }
+
 @media (max-width: 900px) {
   .layout { grid-template-columns: minmax(0, 1fr); padding: 12px 16px; }
   .main { order: -1; }
@@ -176,6 +231,6 @@ table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nu
   .app-header .toolbar, .sidebar, .panel button.icon { display: none; }
   .layout { display: block; padding: 0; }
   .chart-wrap, .panel { border: none; }
-  .readout { display: none; }
+  .readout, .help-btn, .help-pop { display: none !important; }
   @page { size: A4 landscape; margin: 10mm; }
 }

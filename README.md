@@ -28,6 +28,7 @@
 - **表示範囲・表示線の切り替え**
 - **書き出し**: SVG / PNG（2 倍解像度）/ CSV（Excel 対応 BOM 付き）、A4 横での印刷
 - 入力内容はブラウザ（localStorage）に自動保存
+- **説明ポップアップ**: 各枠の「?」ボタンで、その枠の使い方と用語の説明を表示
 
 ## 使い方
 
@@ -59,6 +60,7 @@ ASHRAE Handbook — Fundamentals (2017) 第 1 章に基づく理想気体近似�
 | `js/psychro.js` | 湿り空気の状態量計算（ブラウザ・Node 両対応） |
 | `js/chart.js` | 線図の SVG 描画 |
 | `js/app.js` | UI・入出力 |
+| `js/help.js` | 各枠の説明ポップアップ |
 | `test/psychro.test.js` | 計算部のテスト（`node test/psychro.test.js`） |
 | `load/` | 冷暖房負荷計算シート（`test/calc.test.js` でテスト） |
 | `.github/workflows/pages.yml` | テスト実行と GitHub Pages への自動デプロイ（main への push 時） |
