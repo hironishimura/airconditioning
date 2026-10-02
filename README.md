@@ -20,7 +20,9 @@
 
 ## 使い方
 
-1. `index.html` をブラウザで開く
+公開版: https://hironishimura.github.io/airconditioning/
+
+1. 上の URL を開く（またはローカルで `index.html` をブラウザで開く）
 2. 「サンプル（夏期冷房）」で外気・還気・混合・吹出の例を表示できます
 3. 左のフォームから状態点・変化線・混合・SHF 線を追加します
 
@@ -47,3 +49,4 @@ ASHRAE Handbook — Fundamentals (2017) 第 1 章に基づく理想気体近似�
 | `js/chart.js` | 線図の SVG 描画 |
 | `js/app.js` | UI・入出力 |
 | `test/psychro.test.js` | 計算部のテスト（`node test/psychro.test.js`） |
+| `.github/workflows/pages.yml` | テスト実行と GitHub Pages への自動デプロイ（main への push 時） |
