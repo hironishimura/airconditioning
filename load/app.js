@@ -326,39 +326,52 @@
     root.appendChild(g);
   }
 
-  /* ---------------- サマリーとグラフ ---------------- */
-  function renderChart(items) {
+  /* ---------------- サマリーと円グラフ ---------------- */
+  // 項目ごとに固定の色（並び順は色覚多様性に配慮して検証済みの順）
+  var SLOT = { intL: 1, ventL: 2, intS: 3, ventS: 4, solar: 5, env: 6, humidW: 7, dryS: 8 };
+
+  function arcPath(cx, cy, r0, r1, a0, a1) {
+    var p = function (r, a) { return (cx + r * Math.sin(a)).toFixed(2) + ' ' + (cy - r * Math.cos(a)).toFixed(2); };
+    var large = a1 - a0 > Math.PI ? 1 : 0;
+    return 'M' + p(r1, a0) + ' A' + r1 + ' ' + r1 + ' 0 ' + large + ' 1 ' + p(r1, a1) +
+      ' L' + p(r0, a1) + ' A' + r0 + ' ' + r0 + ' 0 ' + large + ' 0 ' + p(r0, a0) + ' Z';
+  }
+
+  function renderPie(items, total) {
     var host = document.getElementById('chart');
-    var list = items.filter(function (it) { return !it.extra || Math.abs(it.value) >= 0.5; });
-    var W = Math.max(300, Math.min(640, host.clientWidth || 560));
-    var narrow = W < 460;
-    var rowH = 30, top = 22, labelW = narrow ? 112 : 150, valW = narrow ? 58 : 70, padR = 4;
-    var H = top + list.length * rowH + 8;
-    var plotL = labelW, plotR = W - padR;
-    var max = Math.max.apply(null, list.map(function (i) { return Math.abs(i.value); }).concat([1]));
-    // 目盛りを切りのよい値に
-    var step = Math.pow(10, Math.floor(Math.log10(max)));
-    var nice = [1, 2, 2.5, 5, 10].map(function (m) { return m * step; }).find(function (v) { return v >= max; }) || max;
-    var half = (plotR - plotL - valW * 2) / 2;
-    var mid = plotL + valW + half;
-    var sx = function (v) { return mid + (v / nice) * half; };
-    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="熱負荷の内訳グラフ">';
-    [-1, -0.5, 0, 0.5, 1].forEach(function (t) {
-      var x = sx(t * nice);
-      s += '<line class="' + (t === 0 ? 'axis' : 'grid') + '" x1="' + x + '" x2="' + x + '" y1="' + (top - 4) + '" y2="' + (H - 6) + '"/>';
-      s += '<text class="val muted" x="' + x + '" y="12" text-anchor="middle">' + fmt(t * nice, 0) + '</text>';
+    var list = items.filter(function (it) { return Math.abs(it.value) >= 0.5; });
+    var sum = list.reduce(function (a, it) { return a + Math.abs(it.value); }, 0);
+    if (!sum) { host.innerHTML = '<p class="hint">熱の出入りがありません。条件を入力してください。</p>'; return; }
+    var C = 110, R1 = 104, R0 = 64;
+    var svg = '<svg viewBox="0 0 220 220" role="img" aria-label="熱負荷の内訳の円グラフ。合計 ' + signed(total) + '">' +
+      '<defs><pattern id="pie-hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">' +
+      '<rect class="hatch-bg" width="7" height="7" fill-opacity="0"/><line class="hatch" x1="0" y1="0" x2="0" y2="7" stroke-width="3"/></pattern></defs>';
+    var a = 0;
+    list.forEach(function (it) {
+      var span = Math.abs(it.value) / sum * Math.PI * 2;
+      var pct = Math.abs(it.value) / sum * 100;
+      var tip = '<title>' + it.label + '　' + signed(it.value) + '（' + fmt(pct, 1) + '%）</title>';
+      var parts = span >= Math.PI * 2 - 1e-6 ? [[a, a + Math.PI], [a + Math.PI, a + Math.PI * 2]] : [[a, a + span]];
+      parts.forEach(function (pr) {
+        var d = arcPath(C, C, R0, R1, pr[0], pr[1]);
+        svg += '<path class="slice s' + SLOT[it.key] + '" d="' + d + '">' + tip + '</path>';
+        if (it.value < 0) svg += '<path class="slice-hatch" d="' + d + '" fill="url(#pie-hatch)">' + tip + '</path>';
+      });
+      a += span;
     });
-    list.forEach(function (it, i) {
-      var y = top + i * rowH;
-      var v = it.value, x0 = sx(0), x1 = sx(v);
-      var cls = v >= 0 ? 'bar-hot' : 'bar-cold';
-      s += '<text x="0" y="' + (y + rowH / 2 + 4) + '">' + it.label + '</text>';
-      s += '<rect class="' + cls + '" x="' + Math.min(x0, x1) + '" y="' + (y + 6) + '" width="' + Math.max(Math.abs(x1 - x0), 0.5) + '" height="' + (rowH - 12) + '" rx="2"/>';
-      var tx = v >= 0 ? x1 + 4 : x1 - 4;
-      s += '<text class="val" x="' + tx + '" y="' + (y + rowH / 2 + 4) + '" text-anchor="' + (v >= 0 ? 'start' : 'end') + '">' + fmt(v, 0) + ' W</text>';
-    });
-    s += '</svg>';
-    host.innerHTML = s;
+    var tc = signClass(total);
+    svg += '<text class="pie-lbl" x="110" y="96" text-anchor="middle">合計</text>' +
+      '<text class="pie-total t-' + tc + '" x="110" y="122" text-anchor="middle">' + signed(total) + '</text>' +
+      '<text class="pie-lbl" x="110" y="142" text-anchor="middle">' + (tc === 'hot' ? '冷房が必要' : tc === 'cold' ? '暖房が必要' : '負荷ほぼゼロ') + '</text></svg>';
+    var legend = '<ul class="pie-legend">' + list.map(function (it) {
+      var pct = Math.abs(it.value) / sum * 100;
+      return '<li><span class="sw s' + SLOT[it.key] + (it.value < 0 ? ' neg' : '') + '"></span>' +
+        '<span class="lg-name">' + it.label + '</span>' +
+        '<span class="lg-val out ' + signClass(it.value) + '">' + signed(it.value) + '</span>' +
+        '<span class="lg-pct">' + fmt(pct, 0) + '%</span></li>';
+    }).join('') + '</ul>';
+    host.innerHTML = '<div class="pie-wrap"><div class="pie">' + svg + '</div>' + legend + '</div>' +
+      '<p class="hint">円の割合は各項目の影響の大きさ（プラス・マイナスを問わない絶対値）です。<b>斜線</b>の項目は熱が逃げて室内が寒くなる方向（マイナス）、斜線なしは熱が入って暑くなる方向（プラス）です。</p>';
   }
 
   /* ---------------- 家のイラスト ---------------- */
@@ -400,12 +413,12 @@
     L.breakdown.forEach(function (it) { b[it.key] = it.value; });
     var max = Math.max.apply(null, L.breakdown.map(function (i) { return Math.abs(i.value); }).concat([1]));
     var extras = L.breakdown.filter(function (it) { return it.extra && Math.abs(it.value) >= 0.5; });
-    var W = 480, H = 372 + extras.length * 22;
+    var W = 480, H = 398 + extras.length * 22;
     var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="家の断面図で熱の出入りを示した熱負荷の内訳。合計 ' + signed(L.total) + '">';
 
     // 地面・建物
-    s += '<line class="ground" x1="0" y1="360" x2="' + W + '" y2="360"/>';
-    s += '<rect class="bldg" x="110" y="165" width="260" height="195"/>';
+    s += '<line class="ground" x1="0" y1="386" x2="' + W + '" y2="386"/>';
+    s += '<rect class="bldg" x="110" y="165" width="260" height="221"/>';
     s += '<polygon class="roof" points="90,170 240,72 390,170"/>';
     s += '<rect class="glass" x="104" y="200" width="12" height="62"/>'; // 南の窓
 
@@ -438,6 +451,14 @@
     s += '<text class="total t-' + tc + '" x="240" y="140" text-anchor="middle">' + signed(L.total) + '</text>';
     s += txt(240, 159, tc === 'hot' ? '冷房が必要' : tc === 'cold' ? '暖房が必要' : '負荷ほぼゼロ', 'lbl-s', 'middle');
 
+    // 屋内・屋外の温湿度
+    var cond = function (t, rh) { return fmt(t, 1) + '℃・' + fmt(rh, 0) + '%'; };
+    s += '<text class="cond" x="240" y="190" text-anchor="middle"><tspan class="lbl-s">室内　</tspan>' + cond(state.tIn, state.rhIn) +
+      '<tspan class="lbl-s">　' + fmt(L.xIn, 1) + ' g/kg</tspan></text>';
+    s += txt(8, 332, '屋外', 'lbl-s') + '<text class="cond" x="8" y="352">' + cond(state.tOut, state.rhOut) + '</text>' +
+      txt(8, 370, fmt(L.xOut, 1) + ' g/kg', 'lbl-s');
+
+    s += '<g transform="translate(0,26)">';
     // 内部発熱（顕熱）：人・テレビ
     s += txt(180, 192, '内部発熱・顕熱', 'lbl-s', 'middle') + num(180, 212, b.intS, 'middle');
     s += b.intS >= 0 ? arrow(180, 290, 180, 226, b.intS, max) : arrow(180, 226, 180, 290, b.intS, max);
@@ -454,10 +475,11 @@
       s += '<path class="drop" d="M' + (x + 1) + ' 318 q-4 6 0 8 q4 -2 0 -8z"/>';
     });
     s += '<path class="icon" d="M262 334 H332 V342 Q332 352 322 352 H272 Q262 352 262 342 Z"/>';
+    s += '</g>';
 
     // 原表のグラフにない項目（0 でないときだけ）
     extras.forEach(function (it, k) {
-      var y = 384 + k * 22;
+      var y = 410 + k * 22;
       s += txt(8, y, it.label) + num(150, y, it.value);
     });
     s += '</svg>';
@@ -468,13 +490,13 @@
   var view = (function () { try { return localStorage.getItem(VIEW_KEY) || 'house'; } catch (e) { return 'house'; } })();
   function applyView() {
     document.getElementById('house-fig').hidden = view !== 'house';
-    document.getElementById('chart').hidden = view !== 'bars';
+    document.getElementById('chart').hidden = view === 'house';
     document.getElementById('view-house').setAttribute('aria-pressed', view === 'house' ? 'true' : 'false');
-    document.getElementById('view-bars').setAttribute('aria-pressed', view === 'bars' ? 'true' : 'false');
-    if (lastBreakdown && view === 'bars') renderChart(lastBreakdown);
+    document.getElementById('view-pie').setAttribute('aria-pressed', view !== 'house' ? 'true' : 'false');
+    if (lastLoad && view !== 'house') renderPie(lastLoad.breakdown, lastLoad.total);
   }
   function setupView() {
-    ['house', 'bars'].forEach(function (v) {
+    ['house', 'pie'].forEach(function (v) {
       document.getElementById('view-' + v).addEventListener('click', function () {
         view = v;
         try { localStorage.setItem(VIEW_KEY, v); } catch (e) { /* 保存できなくても表示は切り替える */ }
@@ -484,8 +506,7 @@
     applyView();
   }
 
-  var lastBreakdown = null;
-  window.addEventListener('resize', function () { if (lastBreakdown && view === 'bars') renderChart(lastBreakdown); });
+  var lastLoad = null;
 
   function renderSummary(r) {
     var L = r.load;
@@ -503,9 +524,9 @@
     else { hp.className = 'pill neutral'; hp.textContent = '調湿不要'; }
     var meta = [state.season, state.place, state.time].filter(Boolean).join('・');
     document.getElementById('sum-meta').textContent = meta ? '条件：' + meta : '条件：未設定';
-    lastBreakdown = L.breakdown;
+    lastLoad = L;
     renderHouse(L);
-    if (view === 'bars') renderChart(L.breakdown);
+    if (view !== 'house') renderPie(L.breakdown, L.total);
   }
 
   /* ---------------- 値の反映 ---------------- */
