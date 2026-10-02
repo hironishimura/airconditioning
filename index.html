@@ -23,7 +23,7 @@
   <div class="layout">
     <aside class="sidebar">
       <details open>
-        <summary>状態点の追加</summary>
+        <summary>状態点の追加 <button type="button" class="help-btn" data-help="point" aria-label="説明">?</button></summary>
         <form id="form-point" class="form">
           <label>名称 <input id="pt-name" type="text" maxlength="12" placeholder="自動"></label>
           <label>入力する 2 値
@@ -53,7 +53,7 @@
       </details>
 
       <details open>
-        <summary>状態変化（熱量計算）</summary>
+        <summary>状態変化（熱量計算） <button type="button" class="help-btn" data-help="proc" aria-label="説明">?</button></summary>
         <form id="form-proc" class="form">
           <div class="row2">
             <label>始点 <select id="pr-from"></select></label>
@@ -65,7 +65,7 @@
       </details>
 
       <details>
-        <summary>混合</summary>
+        <summary>混合 <button type="button" class="help-btn" data-help="mix" aria-label="説明">?</button></summary>
         <form id="form-mix" class="form">
           <div class="row2">
             <label>空気 1 <select id="mx-a"></select></label>
@@ -81,7 +81,7 @@
       </details>
 
       <details>
-        <summary>SHF 線・装置露点</summary>
+        <summary>SHF 線・装置露点 <button type="button" class="help-btn" data-help="shf" aria-label="説明">?</button></summary>
         <form id="form-shf" class="form">
           <div class="row2">
             <label>基準点 <select id="shf-pt"></select></label>
@@ -93,7 +93,7 @@
       </details>
 
       <details>
-        <summary>線図の設定</summary>
+        <summary>線図の設定 <button type="button" class="help-btn" data-help="settings" aria-label="説明">?</button></summary>
         <form id="form-settings" class="form" onsubmit="return false">
           <div class="row2">
             <label>標高 [m] <input id="set-alt" type="number" step="any" value="0"></label>
@@ -122,10 +122,11 @@
       <div class="chart-wrap">
         <svg id="chart" role="img" aria-label="空気線図"></svg>
         <div id="readout" class="readout" hidden></div>
+        <button type="button" class="help-btn help-btn-chart" data-help="chart" aria-label="説明">?</button>
       </div>
 
       <section class="panel">
-        <h2>状態点</h2>
+        <h2>状態点 <button type="button" class="help-btn" data-help="points" aria-label="説明">?</button></h2>
         <div class="table-wrap">
           <table id="tbl-points">
             <thead>
@@ -141,7 +142,7 @@
       </section>
 
       <section class="panel">
-        <h2>状態変化</h2>
+        <h2>状態変化 <button type="button" class="help-btn" data-help="procs" aria-label="説明">?</button></h2>
         <div class="table-wrap">
           <table id="tbl-procs">
             <thead>
@@ -162,5 +163,6 @@
   <script src="js/psychro.js"></script>
   <script src="js/chart.js"></script>
   <script src="js/app.js"></script>
+  <script src="js/help.js"></script>
 </body>
 </html>
