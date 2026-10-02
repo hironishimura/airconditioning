@@ -1,3 +1,14 @@
+# 空調アプリ
+
+ブラウザで動く空調設計ツール集です。ビルド不要です。
+
+| アプリ | 公開版 | 内容 |
+| --- | --- | --- |
+| 空気線図 | https://hironishimura.github.io/airconditioning/ | 空気線図の作図・状態点・熱量計算（このページで説明） |
+| 冷暖房負荷計算シート | https://hironishimura.github.io/airconditioning/load/ | 住宅の冷暖房負荷（顕熱・潜熱）、エアコン吹出し、床下暖房。説明は [`load/README.md`](load/README.md) |
+
+---
+
 # 空気線図（Psychrometric Chart）
 
 ブラウザで動く空気線図作図アプリです。ビルド不要で、`index.html` をブラウザで開くだけで使えます。
@@ -49,4 +60,5 @@ ASHRAE Handbook — Fundamentals (2017) 第 1 章に基づく理想気体近似�
 | `js/chart.js` | 線図の SVG 描画 |
 | `js/app.js` | UI・入出力 |
 | `test/psychro.test.js` | 計算部のテスト（`node test/psychro.test.js`） |
+| `load/` | 冷暖房負荷計算シート（`test/calc.test.js` でテスト） |
 | `.github/workflows/pages.yml` | テスト実行と GitHub Pages への自動デプロイ（main への push 時） |

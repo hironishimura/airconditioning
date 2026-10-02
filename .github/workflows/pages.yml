@@ -22,6 +22,7 @@ jobs:
         with:
           node-version: 22
       - run: node test/psychro.test.js
+      - run: node test/calc.test.js
 
   build:
     needs: test
@@ -33,7 +34,7 @@ jobs:
       - name: 公開ファイルをまとめる
         run: |
           mkdir _site
-          cp -r index.html css js _site/
+          cp -r index.html css js load _site/
           touch _site/.nojekyll
       - uses: actions/upload-pages-artifact@v3
         with:
