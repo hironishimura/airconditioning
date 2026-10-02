@@ -1,7 +1,7 @@
 // Excel 原表のキャッシュ値と計算エンジンの結果を照合するテスト
 // 実行: node test/calc.test.js
-const C = require('../calc.js');
-const P = require('../presets.js');
+const C = require('../load/calc.js');
+const P = require('../load/presets.js');
 let fail = 0, pass = 0;
 function eq(label, got, want) {
   const ok = Math.abs(got - want) <= 1e-6 * Math.max(1, Math.abs(want));
