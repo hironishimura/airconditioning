@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>冷暖房負荷計算シート</title>
+<meta name="description" content="住宅の冷暖房負荷（顕熱・潜熱）、エアコンの吹出し、床下暖房をブラウザで計算するツール">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+JP:wght@400;600;700&family=Zen+Kaku+Gothic+New:wght@700&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site-head">
+  <div class="wrap">
+    <h1>冷暖房負荷計算シート</h1>
+    <p class="sub">顕熱・潜熱を分けて、家や部屋の冷暖房負荷を求めます。入力するとすぐに再計算されます。はじめての方は<a href="#guide" data-goto="guide">使い方</a>をご覧ください。</p>
+    <nav class="tabs" role="tablist" aria-label="画面の切り替え">
+      <button role="tab" id="tab-load" aria-controls="load" aria-selected="true">負荷計算</button>
+      <button role="tab" id="tab-aircon" aria-controls="aircon" aria-selected="false">エアコン吹出し</button>
+      <button role="tab" id="tab-radiant" aria-controls="radiant" aria-selected="false">輻射暖房・床下</button>
+      <button role="tab" id="tab-guide" aria-controls="guide" aria-selected="false" class="tab-help">使い方</button>
+      <button role="tab" id="tab-formula" aria-controls="formula" aria-selected="false">計算式の説明</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- 共通ツールバー -->
+  <div class="toolbar" id="toolbar">
+    <div class="grp">
+      <label for="in-season">季節</label>
+      <select id="in-season" data-key="season">
+        <option value="">—</option><option>夏</option><option>梅雨</option><option>冬</option><option>中間期</option>
+      </select>
+    </div>
+    <div class="grp">
+      <label for="in-place">場所</label>
+      <select id="in-place" data-key="place">
+        <option value="">—</option><option>家全体</option><option>LDK</option><option>玄関</option><option>寝室</option>
+        <option>洗面脱衣</option><option>トイレ</option><option>子供室</option><option>その他</option>
+      </select>
+    </div>
+    <div class="grp">
+      <label for="in-time">時間</label>
+      <select id="in-time" data-key="time">
+        <option value="">—</option><option>明け方</option><option>昼</option><option>季節平均</option>
+      </select>
+    </div>
+    <div class="grp">
+      <label for="preset">入力例</label>
+      <select id="preset"></select>
+    </div>
+    <div class="actions">
+      <button class="btn" id="btn-preset" type="button">入力例を読み込む</button>
+      <button class="btn" id="btn-io" type="button">保存・読み込み</button>
+    </div>
+    <div class="io" id="preset-confirm" hidden style="width:100%">
+      <span class="msg">いまの入力内容が入力例で置き換わります。よろしいですか？</span>
+      <div style="display:flex;gap:8px">
+        <button class="btn primary" id="btn-preset-yes" type="button">置き換える</button>
+        <button class="btn" id="btn-preset-no" type="button">やめる</button>
+      </div>
+    </div>
+    <div class="io" id="io" hidden style="width:100%">
+      <span class="msg" id="io-msg"></span>
+      <textarea id="io-text" spellcheck="false" aria-label="入力内容のテキスト"></textarea>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn primary" id="btn-copy" type="button">コピー</button>
+        <button class="btn" id="btn-load" type="button">貼り付けた内容を読み込む</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 結果サマリー（負荷計算・エアコン・輻射のタブで共通表示） -->
+  <section class="summary" id="summary" aria-label="計算結果">
+    <div class="total-block">
+      <p class="eyebrow" id="sum-meta">条件：</p>
+      <div>
+        <p class="eyebrow">合計負荷（顕熱＋潜熱）</p>
+        <div class="total-num" id="sum-total">—</div>
+      </div>
+      <div><span class="pill neutral" id="sum-pill">—</span></div>
+      <dl class="kv">
+        <div><dt>必要な冷暖房能力の目安</dt><dd><span id="sum-kw">—</span><span class="u">kW</span></dd></div>
+        <div><dt>顕熱比（顕熱 ÷ 合計）</dt><dd><span id="sum-shf">—</span><span class="u">%</span></dd></div>
+        <div><dt>顕熱合計</dt><dd><span id="sum-sens">—</span><span class="u">W</span></dd></div>
+        <div><dt>潜熱合計</dt><dd><span id="sum-lat">—</span><span class="u">W</span></dd></div>
+        <div style="grid-column:1/-1"><dt>必要な加湿／除湿量 <span class="pill neutral" id="sum-humid-pill">—</span></dt><dd><span id="sum-humid">—</span><span class="u">L/日</span></dd></div>
+      </dl>
+    </div>
+    <div class="chart-block">
+      <h2>熱負荷の内訳</h2>
+      <p class="chart-legend"><span class="lh">プラス＝室内が暑くなる（冷房負荷）</span><span class="lc">マイナス＝室内が寒くなる（暖房負荷）</span></p>
+      <div class="chart" id="chart"></div>
+    </div>
+  </section>
+
+  <div class="panel" id="load" role="tabpanel" aria-labelledby="tab-load">
+    <div id="load-cards"></div>
+  </div>
+
+  <div class="panel" id="aircon" role="tabpanel" aria-labelledby="tab-aircon" hidden>
+    <div id="aircon-cards"></div>
+  </div>
+
+  <div class="panel" id="radiant" role="tabpanel" aria-labelledby="tab-radiant" hidden>
+    <div id="radiant-cards"></div>
+  </div>
+
+  <!-- ================= 使い方 ================= -->
+  <div class="panel doc" id="guide" role="tabpanel" aria-labelledby="tab-guide" hidden>
+    <h2>このツールでわかること</h2>
+    <p>家全体や部屋ごとに、<b>冷房・暖房でどれだけの熱を取り除く（加える）必要があるか</b>を、温度に関わる「顕熱」と湿気に関わる「潜熱」に分けて計算します。あわせて、エアコンの吹出し風量や能力、床下の温水配管の放熱量なども確かめられます。</p>
+    <p>入力はすべてこのブラウザの中だけで計算されます。入力内容はこの端末のブラウザに自動で保存され、次に開いたときも残ります。</p>
+
+    <h2>計算の手順</h2>
+    <ol class="steps">
+      <li><b>条件を決める。</b>画面上部で「季節」「場所」「時間」を選びます（メモ用です。計算には影響しません）。初めての方は「入力例を読み込む」で原表の数値を読み込み、動きを確かめてください。</li>
+      <li><b>室内と外気の条件を入れる。</b>目標とする室温・湿度と、設計に使う外気温・湿度を入れます。外気温は地域の設計用外気温（夏の昼、冬の明け方など）を使います。</li>
+      <li><b>換気を入れる。</b>換気量（㎥/h）と、熱交換換気の場合は顕熱・潜熱の交換効率（%）を入れます。熱交換なしなら 0 です。</li>
+      <li><b>人と家電を入れる。</b>在室人数と、使っている家電の台数を入れます。各項目の括弧内に目安のワット数が書いてあります。使わない機器は数量を 0 にします。</li>
+      <li><b>日射と外皮を入れる。</b>南面・東西面の窓面積と 1㎡ あたりの日射熱、外皮面積と UA値を入れます。UA値は省エネ計算書の値をそのまま使えます。</li>
+      <li><b>結果を見る。</b>上部の「合計負荷」がプラスなら冷房、マイナスなら暖房が必要です。数値の絶対値 ÷ 1000 が必要な能力（kW）の目安です。グラフで、何が負荷の原因になっているかがわかります。</li>
+      <li><b>エアコンを確かめる（任意）。</b>「エアコン吹出し」タブで吹出口の大きさと風速・吹出し温度を入れると、エアコンが出せる能力と顕熱比がわかります。夏はエアコンの顕熱比を建物の顕熱比に近づけるのが目安です。</li>
+      <li><b>床下暖房を確かめる（任意）。</b>「輻射暖房・床下」タブで、温水パイプの放熱量や床ガラリから出る空気の熱量を確かめられます。</li>
+    </ol>
+
+    <h2>数値の符号（プラス・マイナス）の意味</h2>
+    <div class="callout">
+      <p>このツールでは、<b>室内に熱が入ってくる（室内が暑くなる）方向をプラス</b>、<b>室内から熱が出ていく（室内が寒くなる）方向をマイナス</b>として表します。プラスの値は朱色、マイナスの値は藍色で表示します。</p>
+      <p>例：冬に外気温 8℃・室温 22℃ なら、外皮の負荷はマイナス（熱が逃げる）。家電や人の発熱はプラスで、暖房負荷を減らしてくれます。</p>
+    </div>
+
+    <h2>入力のコツ</h2>
+    <ul>
+      <li>各入力欄の下の小さな文字に、目安の数値や注意点を書いています（原表のセルコメントの内容です）。</li>
+      <li>夏の負荷は「昼」、冬の負荷は「明け方」で計算すると最大値（機器選定用）、「季節平均」で計算すると平均的な運転状態を確認できます。</li>
+      <li>部屋ごとに計算する場合は「隣室温度」と「隣室からの空気流入量」「間仕切りの面積」を入れます。家全体なら隣室温度を室温と同じにすれば影響はゼロになります。</li>
+      <li>浴室の潜熱は、「水面からの蒸発量で自動計算する」にチェックを入れると、室温・湿度・水面の風速・水面積から自動で求めます。</li>
+      <li>空気集熱（OMソーラーなど）を使う場合だけ「空気集熱温度」を入れます。空欄なら外気温で計算します。</li>
+    </ul>
+
+    <h2>保存と読み込み</h2>
+    <ul>
+      <li>入力内容はこの端末のブラウザに自動で保存されます。別の端末やブラウザでは引き継がれません。</li>
+      <li>複数の案を残したい場合や人に渡したい場合は「保存・読み込み」→「コピー」で入力内容をテキストにして、メモ帳などに貼り付けて保存してください。読み込むときは、そのテキストを貼り付けて「貼り付けた内容を読み込む」を押します。</li>
+      <li>「入力例を読み込む」で「空欄（手計算用）」を選ぶと、すべての値が 0 になります（原表の「負荷手計算」シートに相当）。</li>
+    </ul>
+
+    <h2>用語</h2>
+    <dl class="terms">
+      <dt>顕熱</dt><dd>温度を上げ下げする熱。温度計で測れる熱です。</dd>
+      <dt>潜熱</dt><dd>水蒸気の量（湿気）の変化にともなう熱。湿度を上げ下げするための熱です。</dd>
+      <dt>顕熱比（SHF）</dt><dd>顕熱 ÷（顕熱＋潜熱）。夏は除湿の割合が大きいほど小さくなります。</dd>
+      <dt>絶対湿度</dt><dd>乾いた空気 1kg に含まれる水蒸気の量（g/kg）。温度が変わっても変わりません。</dd>
+      <dt>相対湿度</dt><dd>その温度で含むことができる最大の水蒸気量に対する割合（%）。</dd>
+      <dt>エンタルピー</dt><dd>空気 1kg が持つ熱の量（kJ/kg）。顕熱分と潜熱分の合計です。</dd>
+      <dt>UA値</dt><dd>外皮平均熱貫流率（W/㎡K）。外皮 1㎡、内外温度差 1℃ あたりに逃げる熱。小さいほど断熱性が高い。</dd>
+      <dt>熱交換率</dt><dd>熱交換換気で、排気の熱（湿気）を給気に戻す割合。</dd>
+      <dt>W と kW</dt><dd>1kW ＝ 1000W。エアコンのカタログの「冷房能力 2.8kW」は 2800W のことです。</dd>
+    </dl>
+
+    <h2>ご注意</h2>
+    <div class="callout warn">
+      <p>計算は簡易的なモデルによるもので、結果は設計の目安です。機器選定にあたっては、メーカーの資料や詳細な計算とあわせて判断してください。計算式の内容は「<a href="#formula" data-goto="formula">計算式の説明</a>」に、原表どおりに再現した点の注記とあわせてまとめています。</p>
+    </div>
+  </div>
+
+  <!-- ================= 計算式 ================= -->
+  <div class="panel doc" id="formula" role="tabpanel" aria-labelledby="tab-formula" hidden>
+    <h2>計算式の説明</h2>
+    <p>このツールは、原表（Excel「冷暖房負荷計算シート」）の数式をそのまま移植しています。各式の右に、原表のセル番地を記しています。</p>
+    <nav class="toc" aria-label="目次">
+      <a href="#f-air">空気の性質</a><a href="#f-vent">換気</a><a href="#f-internal">内部発熱</a><a href="#f-room">隣室・日射・外皮</a>
+      <a href="#f-humid">加湿・除湿</a><a href="#f-total">合計</a><a href="#f-ac">エアコン吹出し</a><a href="#f-radiant">輻射暖房・床下</a><a href="#f-consts">定数一覧</a><a href="#f-notes">原表についての注記</a>
+    </nav>
+
+    <h3 id="f-air">1. 空気の性質（湿り空気）</h3>
+    <div class="formula">
+      <h4>飽和水蒸気圧 ps <span class="cell">各湿度計算の内部</span></h4>
+      <pre>ps(t) = 6.116441 × 10^( 7.591386 × t ÷ (t + 240.7263) )   [hPa]
+（t ≧ 50℃ のときは 6.004918 × 10^( 7.337936 × t ÷ (t + 229.3975) )）</pre>
+      <p>温度 t（℃）の空気が含むことのできる水蒸気の圧力です。Tetens 型の近似式です。</p>
+    </div>
+    <div class="formula">
+      <h4>絶対湿度 x <span class="cell">H30, H31</span></h4>
+      <pre>x = 0.622 × ps × φ ÷ (1013.25 − ps × φ) × 1000   [g/kg]</pre>
+      <p>φ は相対湿度（% ÷ 100）、1013.25 は大気圧（hPa）。0.622 は水蒸気と乾き空気の分子量の比です。</p>
+    </div>
+    <div class="formula">
+      <h4>絶対湿度から相対湿度を求める <span class="cell">P3, P4, P8</span></h4>
+      <pre>φ = 1013.25 × x ÷ ( ps × (622 + x) )</pre>
+    </div>
+
+    <h3 id="f-vent">2. 換気の負荷</h3>
+    <div class="formula">
+      <h4>顕熱エンタルピー差 <span class="cell">B6, D6</span></h4>
+      <pre>Δh顕 = 1.006 × (外気温 − 室温)            [kJ/kg]
+1㎥/h あたり = Δh顕 ÷ 0.83 ÷ 3.6           [W/(㎥/h)]</pre>
+      <p>1.006 は乾き空気の比熱（kJ/kg・K）、0.83 は空気の比容積（㎥/kg）、3.6 は kJ/h を W に直す係数です。空気集熱温度を入れた場合は、外気温の代わりにその温度を使います。</p>
+    </div>
+    <div class="formula">
+      <h4>潜熱エンタルピー差 <span class="cell">H6, J6</span></h4>
+      <pre>Δh潜 = x外 × (2501 + 1.805 × 外気温) − x内 × (2501 + 1.805 × 室温)   [kJ/kg]
+（x は kg/kg、大気圧は 1013 hPa で計算）
+1㎥/h あたり = Δh潜 ÷ 0.83 ÷ 3.6</pre>
+      <p>2501 は 0℃ の水の蒸発潜熱（kJ/kg）、1.805 は水蒸気の比熱（kJ/kg・K）です。</p>
+    </div>
+    <div class="formula">
+      <h4>換気の顕熱負荷・潜熱負荷 <span class="cell">E7, K7</span></h4>
+      <pre>換気顕熱 = 1㎥/h あたりの顕熱 × 換気量 × (1 − 顕熱交換率 ÷ 100)   [W]
+換気潜熱 = 1㎥/h あたりの潜熱 × 換気量 × (1 − 潜熱交換率 ÷ 100)   [W]</pre>
+    </div>
+
+    <h3 id="f-internal">3. 人体・内部発熱</h3>
+    <div class="formula">
+      <h4>人体 <span class="cell">E9, K9</span></h4>
+      <pre>人体顕熱 = 1人あたり顕熱 × 人数
+人体潜熱 = 1人あたり潜熱 × 人数</pre>
+    </div>
+    <div class="formula">
+      <h4>内部発熱（顕熱） <span class="cell">E11～E19</span></h4>
+      <pre>各機器の負荷 = 1台あたりのワット数 × 台数</pre>
+    </div>
+    <div class="formula">
+      <h4>内部発熱（潜熱） <span class="cell">K11～K15</span></h4>
+      <pre>食洗機   = W × 台数（常にプラス）
+室内干し・浴室・水槽・外皮の湿気貫流 = W × 数量 × 符号
+  符号：換気の潜熱負荷がマイナス（外気が乾燥）なら −1、それ以外は +1</pre>
+      <p>外気が乾燥している季節は、室内に出る水蒸気が加湿として役立つ（潜熱負荷を打ち消す）ためマイナスで扱います。</p>
+    </div>
+    <div class="formula">
+      <h4>室内干し（顕熱） <span class="cell">E22</span></h4>
+      <pre>室内干しの潜熱がプラスのとき：  −(室内干しの W) × 回数
+それ以外：                      0</pre>
+      <p>洗濯物から水が蒸発するとき、気化熱で室内の空気が冷やされる分です。</p>
+    </div>
+    <div class="formula">
+      <h4>浴室の自動計算（水面からの蒸発） <span class="cell">O19～Q20</span></h4>
+      <pre>Re  = 1.2 × 水面の風速 × 0.1 ÷ 1.83×10⁻⁵         （代表長さ 0.1m）
+α   = 0.664 × √Re × 0.72^(1/3) × 0.0263 ÷ 0.1      （平板の熱伝達率）
+β   = 0.001 × α ÷ 1.04                              （ルイスの関係による物質伝達率）
+x水 = 室温 + 2℃ の飽和絶対湿度                       [g/kg]
+蒸発量 = β × (x水 − x内) × 水面積 × 3.6 × 24         [kg/日]
+浴室の潜熱 = 蒸発量 × 33                             [W]</pre>
+      <p>水面の温度を室温 + 2℃ と仮定しています。1.2 は空気の密度、1.83×10⁻⁵ は空気の粘性係数、0.72 はプラントル数、0.0263 は空気の熱伝導率です。</p>
+    </div>
+
+    <h3 id="f-room">4. 隣室・日射・外皮</h3>
+    <div class="formula">
+      <h4>暖冷気の流入 <span class="cell">E20</span></h4>
+      <pre>流入 = 流入風量 × (隣室温度 − 室温) × 0.34   [W]</pre>
+      <p>0.34 は空気の容積比熱（≒ 1.2kg/㎥ × 1.006kJ/kg・K ÷ 3.6）です。</p>
+    </div>
+    <div class="formula">
+      <h4>間仕切りの熱貫流 <span class="cell">E21</span></h4>
+      <pre>間仕切り = 2.5 × 面積 × (隣室温度 − 室温)   [W]</pre>
+      <p>2.5 は断熱していない間仕切りの熱貫流率（W/㎡K）として固定値にしています。</p>
+    </div>
+    <div class="formula">
+      <h4>日射取得 <span class="cell">E25, E26</span></h4>
+      <pre>日射取得 = 窓面積 × 1㎡ あたりの日射熱   （南面・東西面それぞれ）</pre>
+    </div>
+    <div class="formula">
+      <h4>外皮 <span class="cell">C28, E31</span></h4>
+      <pre>外皮 = 四捨五入( (外気温 − 室温) × 外皮面積 × UA値 )   [W]</pre>
+    </div>
+
+    <h3 id="f-humid">5. 加湿・除湿</h3>
+    <div class="formula">
+      <h4>必要な加湿／除湿量 <span class="cell">H8</span></h4>
+      <pre>乾き空気の流量 m = 換気量 ÷ ( 0.00455 × (0.622 + x平均 ÷ 1000) × (室温 + 外気温 + 273.15) )   [kg/h]
+換気による水分 W換 = m × |x内 − x外| × 24 ÷ 1000 × (1 − 潜熱交換率 ÷ 100)              [kg/日]
+
+外気の方が湿っているとき（x外 > x内）：
+  量 = −W換 − 人数×1.1 − 食洗機潜熱÷200 − 室内干し潜熱÷62.5 − 浴室潜熱÷33 − 水槽潜熱÷33 − 湿気貫流÷26.1
+それ以外のとき：
+  量 =  W換 − 人数×0.65 − 食洗機潜熱÷200 + 室内干し潜熱÷62.5 + 浴室潜熱÷33 + 水槽潜熱÷33</pre>
+      <p>プラスなら加湿、マイナスなら除湿が必要です。x平均は室内と外気の絶対湿度の平均です。各潜熱の W を割っている数（200, 62.5, 33, 26.1）は、W を 1日の水の量（L）に換算する係数です。</p>
+    </div>
+    <div class="formula">
+      <h4>加湿に使う熱 <span class="cell">K8</span></h4>
+      <pre>加湿が必要なとき：  −加湿量 × 蒸発潜熱 ÷ 24   [W]
+それ以外：          0</pre>
+      <p>蒸発潜熱は原表「基本」が 678.3Wh/kg、「輻射暖房」が 627.6Wh/kg です。画面で選べます。</p>
+    </div>
+
+    <h3 id="f-total">6. 合計</h3>
+    <div class="formula">
+      <h4>顕熱合計・潜熱合計・合計負荷・顕熱比 <span class="cell">B32, H32, D33, K33</span></h4>
+      <pre>顕熱合計 = 換気顕熱 + 人体顕熱 + 内部発熱（顕熱）+ 暖冷気流入 + 間仕切り + 室内干し顕熱 + 日射取得 + 外皮
+潜熱合計 = 換気潜熱 + 加湿に使う熱 + 人体潜熱 + 内部発熱（潜熱）
+合計負荷 = 顕熱合計 + 潜熱合計
+顕熱比   = 顕熱合計 ÷ 合計負荷
+必要な能力の目安 = |合計負荷| ÷ 1000   [kW]</pre>
+    </div>
+    <div class="formula">
+      <h4>グラフの内訳 <span class="cell">G19～H24</span></h4>
+      <pre>内部発熱（潜熱） = 内部発熱（潜熱）の合計 + 人体潜熱
+換気（潜熱）     = 換気潜熱
+内部発熱（顕熱） = 家電の合計 + 暖冷気流入 + 間仕切り + 人体顕熱
+換気（顕熱）     = 換気顕熱
+日射取得         = 南面 + 東西面
+外皮             = 外皮</pre>
+      <p>原表のグラフはこの 6 項目です。このツールでは、0 でないときに限り「加湿に使う熱」「室内干し（顕熱）」も表示するので、グラフの合計が合計負荷と一致します。</p>
+    </div>
+
+    <h3 id="f-ac">7. エアコン吹出し</h3>
+    <div class="formula">
+      <h4>風量 <span class="cell">O12</span></h4>
+      <pre>角形： 風量 = 長辺 × 短辺 × 風速 × 3600              [㎥/h]
+円形： 風量 = 風速 × 3600 × (直径 ÷ 1000)² × π ÷ 4   （長辺 = 0 のとき）</pre>
+    </div>
+    <div class="formula">
+      <h4>換気（熱交換後の外気）の状態 <span class="cell">O3, P3</span></h4>
+      <pre>温度   = 外気温 − (外気温 − 室温) × (1 − 顕熱交換率 ÷ 100)    （交換率 0 なら外気温）
+絶対湿度 = x外 − (x外 − x内) × (1 − 潜熱交換率 ÷ 100)          （交換率 0 なら外気の湿度）</pre>
+    </div>
+    <div class="formula">
+      <h4>混合気 <span class="cell">N2～Q4</span></h4>
+      <pre>室内空気の風量 = エアコン風量 − 換気量
+混合気の温度   = (室内風量 × 室温 + 換気量 × 換気温度) ÷ エアコン風量
+混合気の絶対湿度 = 同じく風量の比で平均</pre>
+    </div>
+    <div class="formula">
+      <h4>吸込み・吹出し空気 <span class="cell">O7～Q8</span></h4>
+      <pre>吸込み空気 = 混合気 または 内気（室内空気）
+吹出し空気：暖房（吸込み温度 &lt; 吹出し温度）なら絶対湿度は吸込みと同じ
+            冷房なら相対湿度 100%（コイルで結露するまで冷やす）</pre>
+    </div>
+    <div class="formula">
+      <h4>エアコンの能力 <span class="cell">O15～Q18</span></h4>
+      <pre>顕熱能力 = 1.006 × |吸込み温度 − 吹出し温度| ÷ 3.6 × 風量 ÷ 0.83                  [W]
+潜熱能力 = |x吸 × (2501 + 1.805 × t吸) − x吹 × (2501 + 1.805 × t吹)| ÷ 3600 × 風量 ÷ 0.83   [W]
+全熱能力 = 顕熱能力 + 潜熱能力
+顕熱比   = 顕熱能力 ÷ 全熱能力
+総熱量   = 全熱能力 × 運転時間 ÷ 1000                                          [kWh]
+総水量   = |x吸 − x吹| ÷ 0.86 × 風量 × 運転時間 ÷ 1000                           [L]</pre>
+      <p>ここでの x は g/kg です。「負荷に対する能力の比」は 全熱能力 ÷ |合計負荷| で、このツールで追加した参考値です。</p>
+    </div>
+    <div class="formula">
+      <h4>到達距離と気流の降下量 <span class="cell">N13～Q13</span></h4>
+      <pre>到達距離 = 吹出し風速 × K × 短辺 ÷ 到達とみなす風速         （角形 K = 4.3）
+         = 吹出し風速 × 5 × 直径 ÷ 到達とみなす風速         （円形）
+Ar       = 9.8 ÷ 300 × (室温 − 吹出し温度) × 短辺 ÷ 吹出し風速²   （アルキメデス数）
+降下量   = 0.42 × Ar ÷ K × (到達距離 ÷ 短辺)³ × 短辺</pre>
+      <p>プラスは冷気が下がる量、マイナスは暖気が上がる量の目安です。</p>
+    </div>
+
+    <h3 id="f-radiant">8. 輻射暖房・床下</h3>
+    <div class="formula">
+      <h4>温水パイプ 1m あたりの熱通過率 <span class="cell">P6</span></h4>
+      <pre>K = 2π ÷ ( 1 ÷ (α内 × 内径) + ln(外径 ÷ 内径) ÷ λ + 1 ÷ (α外 × 外径) )   [W/mK]
+（内径・外径は m）</pre>
+      <p>円管の内側の熱伝達、管壁の熱伝導、外側の熱伝達を直列につないだ熱抵抗の逆数です。</p>
+    </div>
+    <div class="formula">
+      <h4>パイプからの放熱量 <span class="cell">P10</span></h4>
+      <pre>放熱量 = K × パイプの長さ × (水温 − 気温)   [W]</pre>
+    </div>
+    <div class="formula">
+      <h4>床から室内へ移る熱・基礎から逃げる熱 <span class="cell">O28, Q28</span></h4>
+      <pre>床から室内へ = 床面積 × 床のU値 × (床下温度 − 室温)       [W]
+基礎から外へ = (外気温 − 床下温度) × ψ × 基礎の外周長さ      [W]</pre>
+    </div>
+    <div class="formula">
+      <h4>2つの空気の比較 <span class="cell">N13～Q23（輻射暖房）</span></h4>
+      <pre>顕熱差 = 1.006 × |t① − t②| ÷ 3.6 × 風量
+潜熱差 = |x① × (2501 + 1.805 × t①) − x② × (2501 + 1.805 × t②)| ÷ 3600 × 風量
+全熱差 = 顕熱差 + 潜熱差，  総熱量 = 全熱差 × 時間 ÷ 1000，  総水量 = |x① − x②| ÷ 0.86 × 風量 × 時間 ÷ 1000</pre>
+      <p>エアコン能力の式と違い、こちらは原表どおり比容積 0.83 で割っていません。</p>
+    </div>
+
+    <h3 id="f-consts">定数一覧</h3>
+    <div class="table-scroll">
+      <table class="consts">
+        <thead><tr><th>値</th><th>意味</th></tr></thead>
+        <tbody>
+          <tr><td>1.006</td><td>乾き空気の定圧比熱 [kJ/kg・K]</td></tr>
+          <tr><td>1.805</td><td>水蒸気の定圧比熱 [kJ/kg・K]</td></tr>
+          <tr><td>2501</td><td>0℃ における水の蒸発潜熱 [kJ/kg]</td></tr>
+          <tr><td>0.83</td><td>空気の比容積 [㎥/kg]</td></tr>
+          <tr><td>3.6</td><td>kJ/h → W の換算（1W = 3.6kJ/h）</td></tr>
+          <tr><td>0.34</td><td>空気の容積比熱 [Wh/㎥・K]</td></tr>
+          <tr><td>0.622</td><td>水蒸気と乾き空気の分子量比</td></tr>
+          <tr><td>1013.25</td><td>標準大気圧 [hPa]</td></tr>
+          <tr><td>2.5</td><td>間仕切りの熱貫流率 [W/㎡K]</td></tr>
+          <tr><td>678.3 / 627.6</td><td>水の蒸発潜熱 [Wh/kg]（加湿負荷の換算）</td></tr>
+          <tr><td>33</td><td>浴室の蒸発量 [kg/日] を潜熱 [W] に換算する係数</td></tr>
+          <tr><td>4.3 / 5</td><td>吹出口の到達距離の係数（角形 / 円形）</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 id="f-notes">原表についての注記</h3>
+    <div class="callout warn">
+      <p>計算結果を原表（Excel）と一致させるため、次の点も原表の式のとおりに再現しています。必要に応じて確認してください。</p>
+      <ul>
+        <li>加湿・除湿量（H8）の空気の温度は、原表の <code>AVERAGE(C4+I4)</code> が「室温＋外気温」の和を返すため、平均ではなく和で計算しています。</li>
+        <li>熱交換後の外気の温度・湿度（O3, P3）は「外気 −（外気 − 室内）×（1 − 交換率）」で計算しています。交換率 100% のとき外気と同じ値になります。</li>
+        <li>円形吹出口の気流の降下量（Q13）は、原表どおり直径ではなく「短辺」の値を使います。</li>
+        <li>原表「基本」シートは空気集熱温度に 0 が入っているため、入力例「基本」も 0 ℃ で計算します（空欄にすると外気温で計算します）。</li>
+      </ul>
+    </div>
+  </div>
+</main>
+
+<footer class="site-foot wrap">
+  <p>冷暖房負荷計算シート Web 版。原表：冷暖房負荷計算シート（基本／輻射暖房／負荷手計算）。計算結果は設計の目安です。</p>
+</footer>
+
+<script src="presets.js"></script>
+<script src="calc.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
